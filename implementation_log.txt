@@ -1,0 +1,24 @@
+# 実装ログ
+
+## 2025-04-22
+- SQLiteの「unable to open database file」エラーを解決。  
+  データベースURIを絶対パスに変更し、`instance`ディレクトリの権限を777に設定。  
+- `docker-compose.yml`の`command`を一時的に`tail -f /dev/null`に変更し、コンテナのデバッグを実施。  
+- `command`設定を元に戻し、Flaskアプリを正常起動させることに成功。
+2025-04-24: Flask-Migrateを導入し、マイグレーションの初期設定と実行手順を追加。  
+2025-04-24: Dockerコンテナ内でFlaskコマンドを実行する際は`docker-compose exec web`を付ける必要があることを記録。  
+2025-04-24: コンテナ内シェルに入ってまとめてコマンドを実行する方法も記載。docker-compose exec web sh
+2025-04-24: Flask-Migrateのコマンド説明を追加。  
+- docker-compose exec web flask db init: マイグレーション用ディレクトリ初期化（初回のみ）  
+- docker-compose exec web flask db migrate -m "メッセージ": モデル変更を検出しマイグレーションファイル生成  
+- docker-compose exec web flask db upgrade: マイグレーション適用しDBスキーマ更新  
+- docker-compose exec web flask db downgrade: マイグレーションを1つ前に戻す  
+これらを使い分けて安全にDBスキーマ管理を行う。
+2025-04-24: SiteInfoモデルに編集日時カラムを追加し、複数レコードの削除方法を案内。  
+2025-04-24: Flask-Migrateのマイグレーションコマンドの使い方を説明し、Dockerコンテナ内での実行方法を案内。  
+2025-04-24: Flask-Migrateの導入に伴う依存関係のインストール方法とDockerイメージの再ビルド手順を説明。  
+2025-04-24: Flaskの自動リロード設定について確認し、`FLASK_DEBUG=1`の追加を提案。  
+2025-04-24: Dockerコンテナの起動コマンドを修正し、Flask開発サーバーの起動を安定化。  
+2025-04-24: サイト概要編集機能の改善と初期データ作成方法を案内。  
+2025-04-24: Postモデルに更新日時カラムを追加し、マイグレーション適用を推奨。  
+2025-04-24: 本日の作業をまとめて記録。

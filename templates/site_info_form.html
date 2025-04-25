@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}サイト概要編集{% endblock %}
+
+{% block content %}
+<h2>サイト概要編集</h2>
+
+<form method="post">
+    <div>
+        <label for="description">サイト概要</label><br>
+        <textarea id="description" name="description" rows="6" cols="60" required>{{ site_info.description }}</textarea>
+    </div>
+    <div>
+        <button type="submit">保存</button>
+        <a href="{{ url_for('index') }}">キャンセル</a>
+    </div>
+</form>
+{% endblock %}

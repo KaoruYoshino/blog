@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}日本語教室ボランティアブログ{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+    <header>
+        <h1><a href="{{ url_for('index') }}">日本語教室ボランティアブログ</a></h1>
+        <nav>
+            {% if session.get('user_id') %}
+                <a href="{{ url_for('logout') }}">ログアウト</a>
+                <a href="{{ url_for('post_create') }}">記事投稿</a>
+                <a href="{{ url_for('edit_siteinfo') }}">サイト概要編集</a>
+            {% else %}
+                <a href="{{ url_for('login') }}">ログイン</a>
+            {% endif %}
+        </nav>
+    </header>
+    <main>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <ul class="flashes">
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+    <footer>
+        <small>© 2025 日本語教室ボランティアブログ</small>
+    </footer>
+</body>
+</html>

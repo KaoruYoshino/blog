@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}{{ post.title }} - 日本語教室ボランティアブログ{% endblock %}
+
+{% block content %}
+<article>
+    <h2>{{ post.title }}</h2>
+    <p><small>投稿日: {{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</small></p>
+    <div class="post-body">
+        {{ post_body_html | safe }}
+    </div>
+    <p><a href="{{ url_for('index') }}">記事一覧に戻る</a></p>
+    {% if session.get('user_id') %}
+    <p>
+      <a href="{{ url_for('post_edit', post_id=post.id) }}" class="btn btn-primary">記事を編集</a>
+      <form action="{{ url_for('post_delete', post_id=post.id) }}" method="post" style="display:inline;">
+        <button type="submit" class="btn btn-danger" onclick="return confirm('本当に削除しますか？');">記事を削除</button>
+      </form>
+    </p>
+    {% endif %}
+  </article>
+{% endblock %}

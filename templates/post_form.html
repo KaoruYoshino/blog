@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if post %}記事編集{% else %}記事投稿{% endif %} - 日本語教室ボランティアブログ
+{% endblock %}
+
+{% block content %}
+<h2>{% if post %}記事編集{% else %}記事投稿{% endif %}</h2>
+<form method="post" action="">
+    <label for="title">タイトル:</label><br />
+    <input type="text" id="title" name="title" value="{{ post.title if post else '' }}" required /><br />
+    <label for="body">本文 (Markdown可):</label><br />
+    <textarea id="body" name="body" rows="10" required>{{ post.body if post else '' }}</textarea><br />
+    <button type="submit">{% if post %}更新{% else %}投稿{% endif %}</button>
+</form>
+{% if post %}
+<form method="post" action="{{ url_for('post_delete', post_id=post.id) }}" onsubmit="return confirm('本当に削除しますか？');">
+    <button type="submit" style="margin-top:1em; color: red;">記事を削除</button>
+</form>
+{% endif %}
+<p><a href="{{ url_for('index') }}">記事一覧に戻る</a></p>
+{% endblock %}
