@@ -1,9 +1,10 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, session, abort
+from flask import Flask, render_template, request, redirect, url_for, flash, session, abort, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
 from markdown import markdown
 from models import db, User, Post, SiteInfo
 from flask_migrate import Migrate
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_secret_key')
@@ -73,6 +74,16 @@ def logout():
     return redirect(url_for('index'))
 
 # 記事投稿
+UPLOAD_FOLDER = 'static/uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+# アップロードフォルダが存在しない場合は作成する
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 @app.route('/post/create', methods=['GET', 'POST'])
 def post_create():
     if not session.get('user_id'):
@@ -81,10 +92,19 @@ def post_create():
     if request.method == 'POST':
         title = request.form['title']
         body = request.form['body']
+        image = request.files.get('image')
         if not title or not body:
             flash('タイトルと本文は必須です。')
             return render_template('post_form.html')
         post = Post(title=title, body=body)
+        if image and allowed_file(image.filename):
+            import uuid
+            # ファイル名はUUIDのみで生成し日本語を排除
+            ext = image.filename.rsplit('.', 1)[1].lower()
+            unique_filename = f"{uuid.uuid4().hex}.{ext}"
+            image_path = os.path.join(UPLOAD_FOLDER, unique_filename)
+            image.save(os.path.join(current_app.root_path, image_path))
+            post.image_path = image_path
         db.session.add(post)
         db.session.commit()
         flash('記事を投稿しました。')
@@ -101,11 +121,17 @@ def post_edit(post_id):
     if request.method == 'POST':
         title = request.form['title']
         body = request.form['body']
+        image = request.files.get('image')
         if not title or not body:
             flash('タイトルと本文は必須です。')
             return render_template('post_form.html', post=post)
         post.title = title
         post.body = body
+        if image and allowed_file(image.filename):
+            filename = secure_filename(image.filename)
+            image_path = os.path.join(UPLOAD_FOLDER, filename)
+            image.save(os.path.join(current_app.root_path, image_path))
+            post.image_path = image_path
         db.session.commit()
         flash('記事を更新しました。')
         return redirect(url_for('post_detail', post_id=post.id))

@@ -4,11 +4,77 @@
 {% if post %}記事編集{% else %}記事投稿{% endif %} - 日本語教室ボランティアブログ
 {% endblock %}
 
+<script>
+// 編集中テキストの一時保存（localStorage利用）
+const textarea = document.getElementById('body');
+const storageKey = 'post_body_draft';
+
+if (textarea) {
+  // ページ読み込み時に保存済みテキストを復元
+  const saved = localStorage.getItem(storageKey);
+  if (saved) {
+    textarea.value = saved;
+  }
+
+  // 入力時に保存
+  textarea.addEventListener('input', () => {
+    localStorage.setItem(storageKey, textarea.value);
+  });
+}
+
+// Markdown直感編集機能：選択テキストに見出しを付けるボタンを追加
+function wrapSelection(before, after) {
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const selectedText = textarea.value.substring(start, end);
+  const newText = before + selectedText + after;
+  textarea.setRangeText(newText, start, end, 'end');
+  textarea.focus();
+}
+
+// 見出しボタンの作成と挿入
+const headingButton = document.createElement('button');
+headingButton.type = 'button';
+headingButton.textContent = '見出し';
+headingButton.style.marginRight = '0.5em';
+headingButton.addEventListener('click', () => {
+  // 選択範囲の前にMarkdownの見出し記号を追加
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  if (start === end) {
+    // 選択なしならカーソル行の先頭に#を追加
+    const value = textarea.value;
+    const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+    textarea.setRangeText('# ', lineStart, lineStart, 'end');
+    textarea.selectionStart = textarea.selectionEnd = start + 2;
+  } else {
+    // 選択範囲の各行の先頭に#を追加
+    const value = textarea.value;
+    const selected = value.substring(start, end);
+    const lines = selected.split('\n');
+    const newLines = lines.map(line => '# ' + line);
+    const newText = newLines.join('\n');
+    textarea.setRangeText(newText, start, end, 'end');
+    textarea.selectionStart = start;
+    textarea.selectionEnd = start + newText.length;
+  }
+  textarea.focus();
+});
+
+// フォームのタイトルの上に見出しボタンを挿入
+const titleInput = document.getElementById('title');
+if (titleInput && titleInput.parentNode) {
+  titleInput.parentNode.insertBefore(headingButton, titleInput);
+}
+</script>
+
 {% block content %}
 <h2>{% if post %}記事編集{% else %}記事投稿{% endif %}</h2>
-<form method="post" action="">
+<form method="post" action="" enctype="multipart/form-data">
     <label for="title">タイトル:</label><br />
     <input type="text" id="title" name="title" value="{{ post.title if post else '' }}" required /><br />
+    <label for="image">画像添付:</label><br />
+    <input type="file" id="image" name="image" accept="image/*" /><br />
     <label for="body">本文 (Markdown可):</label><br />
     <textarea id="body" name="body" rows="10" required>{{ post.body if post else '' }}</textarea><br />
     <button type="submit">{% if post %}更新{% else %}投稿{% endif %}</button>
