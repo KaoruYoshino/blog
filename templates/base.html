@@ -14,8 +14,6 @@
                 <a href="{{ url_for('logout') }}">ログアウト</a>
                 <a href="{{ url_for('post_create') }}">記事投稿</a>
                 <a href="{{ url_for('edit_siteinfo') }}">サイト概要編集</a>
-            {% else %}
-                <a href="{{ url_for('login') }}">ログイン</a>
             {% endif %}
         </nav>
     </header>

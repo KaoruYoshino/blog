@@ -77,7 +77,59 @@ if (titleInput && titleInput.parentNode) {
     <input type="file" id="image" name="image" accept="image/*" /><br />
     <label for="body">本文 (Markdown可):</label><br />
     <textarea id="body" name="body" rows="10" required>{{ post.body if post else '' }}</textarea><br />
+    <button type="button" id="preview-button" style="margin-right: 1em;">プレビュー</button>
     <button type="submit">{% if post %}更新{% else %}投稿{% endif %}</button>
+    <div id="preview-area" style="border:1px solid #ccc; padding:10px; margin-top:10px; display:none; max-height:400px; overflow:auto; background:#f9f9f9;"></div>
+<script>
+  const imageInput = document.getElementById('image');
+  const bodyTextarea = document.getElementById('body');
+
+  imageInput.addEventListener('change', () => {
+    const file = imageInput.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    fetch('/upload_image', {
+      method: 'POST',
+      body: formData,
+    })
+      .then(response => response.json())
+      .then(data => {
+        if (data.error) {
+          alert('画像アップロードエラー: ' + data.error);
+          return;
+        }
+        const imagePath = data.image_path;
+        const markdownImage = `![${file.name}](${imagePath})\n`;
+
+        const startPos = bodyTextarea.selectionStart;
+        const endPos = bodyTextarea.selectionEnd;
+        const textBefore = bodyTextarea.value.substring(0, startPos);
+        const textAfter = bodyTextarea.value.substring(endPos, bodyTextarea.value.length);
+        bodyTextarea.value = textBefore + markdownImage + textAfter;
+
+        const cursorPos = startPos + markdownImage.length;
+        bodyTextarea.selectionStart = bodyTextarea.selectionEnd = cursorPos;
+        bodyTextarea.focus();
+      })
+      .catch(() => {
+        alert('画像アップロードに失敗しました。');
+      });
+  });
+
+  const previewButton = document.getElementById('preview-button');
+  const previewArea = document.getElementById('preview-area');
+
+  previewButton.addEventListener('click', () => {
+    const markdownText = bodyTextarea.value;
+    const html = marked.parse(markdownText);
+    previewArea.innerHTML = html;
+    previewArea.style.display = 'block';
+  });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </form>
 {% if post %}
 <form method="post" action="{{ url_for('post_delete', post_id=post.id) }}" onsubmit="return confirm('本当に削除しますか？');">
