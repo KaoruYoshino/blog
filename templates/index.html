@@ -9,6 +9,10 @@
 {% else %}
 <p>このサイトは日本語教室のボランティア活動の記録や情報共有を目的としたブログです。記事一覧は以下に表示されています。</p>
 {% endif %}
+
+<!-- カレンダー表示エリア -->
+<div id="calendar"></div>
+
 <h2>記事一覧</h2>
 <ul>
     {% for post in posts %}
@@ -20,4 +24,36 @@
     <li>記事がありません。</li>
     {% endfor %}
 </ul>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const calendarEl = document.getElementById('calendar');
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'ja',
+        dayMaxEvents: true,
+        height: 'auto',
+        nowIndicator: true,
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        // イベントデータは今後追加予定
+        events: []
+    });
+    calendar.render();
+});
+</script>
+
+<style>
+/* 今日の日付を丸で囲むスタイル */
+.today {
+    background-color: #ffeb3b;
+    border-radius: 50%;
+    text-align: center;
+    font-weight: bold;
+}
+</style>
+
 {% endblock %}
