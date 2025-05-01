@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+instance/
+.env
+*.sqlite3
+*.db
+*.log
+venv/
+node_modules/
+static/uploads/

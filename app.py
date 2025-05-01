@@ -1,15 +1,17 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, session, abort, current_app
+from flask import Flask, render_template, request, redirect, url_for, flash, session, abort, current_app, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from markdown import markdown
 from models import db, User, Post, SiteInfo
 from flask_migrate import Migrate
 from werkzeug.utils import secure_filename
+import uuid
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_secret_key')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////app/instance/blog.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOAD_FOLDER'] = 'static/uploads'
 
 db.init_app(app)
 migrate = Migrate(app, db)
@@ -42,6 +44,12 @@ def login():
             flash('ユーザー名かパスワードが間違っています。')
     return render_template('login.html')
 
+@app.route('/logout')
+def logout():
+    session.pop('user_id', None)
+    flash('ログアウトしました。')
+    return redirect(url_for('index'))
+
 # サイト概要編集
 @app.route('/admin/siteinfo', methods=['GET', 'POST'])
 def edit_siteinfo():
@@ -66,24 +74,7 @@ def edit_siteinfo():
 
     return render_template('site_info_form.html', site_info=site_info)
 
-# ログアウト処理
-@app.route('/logout')
-def logout():
-    session.pop('user_id', None)
-    flash('ログアウトしました。')
-    return redirect(url_for('index'))
-
 # 記事投稿
-UPLOAD_FOLDER = 'static/uploads'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-
-# アップロードフォルダが存在しない場合は作成する
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
 @app.route('/post/create', methods=['GET', 'POST'])
 def post_create():
     if not session.get('user_id'):
@@ -98,11 +89,10 @@ def post_create():
             return render_template('post_form.html')
         post = Post(title=title, body=body)
         if image and allowed_file(image.filename):
-            import uuid
             # ファイル名はUUIDのみで生成し日本語を排除
             ext = image.filename.rsplit('.', 1)[1].lower()
             unique_filename = f"{uuid.uuid4().hex}.{ext}"
-            image_path = os.path.join(UPLOAD_FOLDER, unique_filename)
+            image_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
             image.save(os.path.join(current_app.root_path, image_path))
             post.image_path = image_path
         db.session.add(post)
@@ -129,7 +119,7 @@ def post_edit(post_id):
         post.body = body
         if image and allowed_file(image.filename):
             filename = secure_filename(image.filename)
-            image_path = os.path.join(UPLOAD_FOLDER, filename)
+            image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             image.save(os.path.join(current_app.root_path, image_path))
             post.image_path = image_path
         db.session.commit()
@@ -148,3 +138,22 @@ def post_delete(post_id):
     db.session.commit()
     flash('記事を削除しました。')
     return redirect(url_for('index'))
+
+@app.route('/upload_image', methods=['POST'])
+def upload_image():
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image part'}), 400
+    image = request.files['image']
+    if image.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    ext = image.filename.rsplit('.', 1)[1].lower()
+    if ext not in {'png', 'jpg', 'jpeg', 'gif'}:
+        return jsonify({'error': 'Invalid file extension'}), 400
+    unique_filename = f"{uuid.uuid4().hex}.{ext}"
+    upload_folder = current_app.config.get('UPLOAD_FOLDER', 'static/uploads')
+    image_path = f"{upload_folder}/{unique_filename}"
+    image.save(f"{current_app.root_path}/{image_path}")
+    return jsonify({'image_path': f"/{image_path}"})
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
