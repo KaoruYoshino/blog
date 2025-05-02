@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{% block title %}日本語教室ボランティアブログ{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
-<!-- FullCalendar CSS -->
+    <!-- FullCalendar CSS -->
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
     <!-- FullCalendar JS -->
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
@@ -18,6 +18,13 @@
                 <a href="{{ url_for('logout') }}">ログアウト</a>
                 <a href="{{ url_for('post_create') }}">記事投稿</a>
                 <a href="{{ url_for('edit_siteinfo') }}">サイト概要編集</a>
+                <script>
+                    window.isLoggedIn = true;
+                </script>
+            {% else %}
+                <script>
+                    window.isLoggedIn = false;
+                </script>
             {% endif %}
         </nav>
     </header>

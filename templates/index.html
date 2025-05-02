@@ -2,12 +2,16 @@
 
 {% block title %}記事一覧 - 日本語教室ボランティアブログ{% endblock %}
 
+{# ログイン状態はtemplates/base.htmlでwindow.isLoggedInとして定義済みのため、ここでは定義しません #}
 {% block content %}
 <h2>日本語教室ボランティアブログへようこそ</h2>
 {% if site_info %}
 <p>{{ site_info.description|safe }}</p>
 {% else %}
-<p>このサイトは日本語教室のボランティア活動の記録や情報共有を目的としたブログです。記事一覧は以下に表示されています。</p>
+<p>このサイトは日本語教室のボランティア活動の記録や情報共有を目的としたブログです。</p>
+{% if window.isLoggedIn %}
+  <button id="calendarEditBtn" onclick="location.href='{{ url_for('calendar_manage_view') }}'">カレンダー編集</button>
+{% endif %}
 {% endif %}
 
 <!-- カレンダー表示エリア -->
@@ -25,35 +29,16 @@
     {% endfor %}
 </ul>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const calendarEl = document.getElementById('calendar');
-    const calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'dayGridMonth',
-        locale: 'ja',
-        dayMaxEvents: true,
-        height: 'auto',
-        nowIndicator: true,
-        headerToolbar: {
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay'
-        },
-        // イベントデータは今後追加予定
-        events: []
-    });
-    calendar.render();
-});
-</script>
-
-<style>
-/* 今日の日付を丸で囲むスタイル */
-.today {
-    background-color: #ffeb3b;
-    border-radius: 50%;
-    text-align: center;
-    font-weight: bold;
-}
-</style>
+<!-- カレンダー編集モーダル -->
+<div id="calendarModal" style="display:none; position:fixed; top:20%; left:50%; transform:translateX(-50%); background:#fff; border:1px solid #ccc; padding:20px; z-index:2000;">
+  <h3>予定編集</h3>
+  <label for="eventTitle">タイトル:</label>
+  <input type="text" id="eventTitle" name="eventTitle" style="width:100%; margin-bottom:10px;">
+  <div style="text-align:right;">
+    <button id="saveEventBtn">保存</button>
+    <button id="cancelEventBtn">キャンセル</button>
+  </div>
+</div>
+<script src="/static/js/index_calendar.js"></script>
 
 {% endblock %}

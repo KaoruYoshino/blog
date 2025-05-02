@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}カレンダー管理{% endblock %}
+
+{% block content %}
+<h2>カレンダー管理画面</h2>
+
+<div id="calendar"></div>
+
+<!-- 予定追加・編集用モーダル -->
+<div id="eventModal" style="display:none; position:fixed; top:20%; left:30%; background:#fff; border:1px solid #ccc; padding:20px; z-index:1000;">
+    <h3 id="modalTitle">予定追加</h3>
+    <form id="eventForm">
+        <input type="hidden" id="eventId" />
+        <div>
+            <label for="title">タイトル:</label>
+            <input type="text" id="title" name="title" required />
+        </div>
+        <div>
+            <label for="start">開始日時:</label>
+            <input type="datetime-local" id="start" name="start" required />
+        </div>
+        <div>
+            <label for="end">終了日時:</label>
+            <input type="datetime-local" id="end" name="end" />
+        </div>
+        <div>
+            <label for="location">会場:</label>
+            <input type="text" id="location" name="location" list="locationHistory" />
+            <datalist id="locationHistory"></datalist>
+        </div>
+        <div>
+            <label for="recurrence_rule">繰り返し:</label>
+            <select id="recurrence_rule" name="recurrence_rule">
+                <option value="">なし</option>
+                <option value="weekly">毎週</option>
+            </select>
+        </div>
+        <div>
+            <label for="description">説明:</label>
+            <textarea id="description" name="description"></textarea>
+        </div>
+        <button type="submit">保存</button>
+        <button type="button" id="cancelBtn">キャンセル</button>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const calendarEl = document.getElementById('calendar');
+    const modal = document.getElementById('eventModal');
+    const form = document.getElementById('eventForm');
+    const locationHistory = document.getElementById('locationHistory');
+
+    let calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'ja',
+        editable: true,
+        selectable: true,
+        events: '/api/events',
+        eventClick: function(info) {
+            openModal(info.event);
+        },
+        select: function(selectionInfo) {
+            openModal(null, selectionInfo);
+        },
+        dateClick: function(info) {
+            openModal(null, {startStr: info.dateStr, endStr: null});
+        },
+        dayCellDidMount: function(info) {
+            info.el.style.cursor = 'pointer';
+        }
+    });
+
+    calendar.render();
+
+    function openModal(event=null, selectionInfo=null) {
+        modal.style.display = 'block';
+        if(event) {
+            document.getElementById('modalTitle').textContent = '予定編集';
+            document.getElementById('eventId').value = event.id;
+            document.getElementById('title').value = event.title;
+            document.getElementById('start').value = event.startStr.slice(0,16);
+            document.getElementById('end').value = event.endStr ? event.endStr.slice(0,16) : '';
+            document.getElementById('location').value = event.extendedProps.location || '';
+            document.getElementById('recurrence_rule').value = event.extendedProps.recurrence_rule || '';
+            document.getElementById('description').value = event.extendedProps.description || '';
+        } else if(selectionInfo) {
+            document.getElementById('modalTitle').textContent = '予定追加';
+            document.getElementById('eventId').value = '';
+            document.getElementById('title').value = '';
+            document.getElementById('start').value = selectionInfo.startStr.slice(0,16);
+            document.getElementById('end').value = selectionInfo.endStr ? selectionInfo.endStr.slice(0,16) : '';
+            document.getElementById('location').value = '';
+            document.getElementById('recurrence_rule').value = '';
+            document.getElementById('description').value = '';
+        }
+    }
+
+    document.getElementById('cancelBtn').addEventListener('click', function() {
+        modal.style.display = 'none';
+    });
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const eventId = document.getElementById('eventId').value;
+        const data = {
+            title: document.getElementById('title').value,
+            start: document.getElementById('start').value,
+            end: document.getElementById('end').value,
+            location: document.getElementById('location').value,
+            recurrence_rule: document.getElementById('recurrence_rule').value,
+            description: document.getElementById('description').value
+        };
+        let url = '/api/events';
+        let method = 'POST';
+        if(eventId) {
+            url += '/' + eventId;
+            method = 'PUT';
+        }
+        fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        }).then(response => {
+            if(response.ok) {
+                modal.style.display = 'none';
+                calendar.refetchEvents();
+                updateLocationHistory(data.location);
+            } else {
+                alert('保存に失敗しました。');
+            }
+        });
+    });
+
+    function updateLocationHistory(location) {
+        if(!location) return;
+        let options = Array.from(locationHistory.options).map(opt => opt.value);
+        if(!options.includes(location)) {
+            let option = document.createElement('option');
+            option.value = location;
+            locationHistory.appendChild(option);
+        }
+    }
+});
+</script>
+
+{% endblock %}
