@@ -40,8 +40,10 @@
             <label for="description">説明:</label>
             <textarea id="description" name="description"></textarea>
         </div>
-        <button type="submit">保存</button>
+        <button type="button" id="deleteBtn">削除</button>
         <button type="button" id="cancelBtn">キャンセル</button>
+        <button type="submit">保存</button>
+
     </form>
 </div>
 
@@ -99,6 +101,35 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('cancelBtn').addEventListener('click', function() {
         modal.style.display = 'none';
+    });
+
+    document.getElementById('deleteBtn').addEventListener('click', function () {
+        const eventId = document.getElementById('eventId').value;
+        if (!eventId) {
+            alert('削除する予定が選択されていません。');
+            return;
+        }
+        if (!confirm('本当にこの予定を削除しますか？')) {
+            return;
+        }
+        fetch(`/api/events/${eventId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        }).then(response => {
+            if (response.ok) {
+                alert('予定を削除しました。');
+                modal.style.display = 'none';
+                location.reload();
+            } else {
+                response.json().then(data => {
+                    alert('削除に失敗しました: ' + (data.error || '不明なエラー'));
+                });
+            }
+        }).catch(error => {
+            alert('削除に失敗しました: ' + error);
+        });
     });
 
     form.addEventListener('submit', function(e) {

@@ -66,20 +66,24 @@ def calendar_manage():
 def get_events():
     if not session.get('user_id'):
         return jsonify({'error': 'ログインが必要です。'}), 401
-    events = Event.query.all()
-    event_list = []
-    for event in events:
-        event_list.append({
-            'id': event.id,
-            'title': event.title,
-            'start': event.start.isoformat(),
-            'end': event.end.isoformat() if event.end else None,
-            'description': event.description,
-            'recurrence_rule': event.recurrence_rule,
-            'location': event.location,
-            'user_id': event.user_id
-        })
-    return jsonify(event_list)
+    try:
+        events = Event.query.all()
+        event_list = []
+        for event in events:
+            event_list.append({
+                'id': event.id,
+                'title': event.title,
+                'start': event.start.isoformat(),
+                'end': event.end.isoformat() if event.end else None,
+                'description': event.description,
+                'recurrence_rule': event.recurrence_rule,
+                'location': event.location,
+                'user_id': event.user_id
+            })
+        return jsonify(event_list)
+    except Exception as e:
+        current_app.logger.error(f"Error in get_events: {e}")
+        return jsonify({'error': 'サーバーエラーが発生しました。'}), 500
 
 # サイト概要編集
 @app.route('/admin/siteinfo', methods=['GET', 'POST'])

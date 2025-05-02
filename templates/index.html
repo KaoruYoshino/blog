@@ -29,16 +29,6 @@
     {% endfor %}
 </ul>
 
-<!-- カレンダー編集モーダル -->
-<div id="calendarModal" style="display:none; position:fixed; top:20%; left:50%; transform:translateX(-50%); background:#fff; border:1px solid #ccc; padding:20px; z-index:2000;">
-  <h3>予定編集</h3>
-  <label for="eventTitle">タイトル:</label>
-  <input type="text" id="eventTitle" name="eventTitle" style="width:100%; margin-bottom:10px;">
-  <div style="text-align:right;">
-    <button id="saveEventBtn">保存</button>
-    <button id="cancelEventBtn">キャンセル</button>
-  </div>
-</div>
 <script src="/static/js/index_calendar.js"></script>
 
 {% endblock %}

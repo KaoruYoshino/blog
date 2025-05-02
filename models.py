@@ -1,4 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
+from utils import get_current_time_jst
 
 db = SQLAlchemy()
 
@@ -22,14 +23,14 @@ class Post(db.Model):
     title = db.Column(db.String(200), nullable=False)
     body = db.Column(db.Text, nullable=False)
     image_path = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
-    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+    created_at = db.Column(db.DateTime, default=get_current_time_jst)
+    updated_at = db.Column(db.DateTime, default=get_current_time_jst, onupdate=get_current_time_jst)
 
 class SiteInfo(db.Model):
     """サイトの概要情報を管理するモデル。サイト説明文などを保持。"""
     id = db.Column(db.Integer, primary_key=True)
     description = db.Column(db.Text, nullable=False)
-    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+    updated_at = db.Column(db.DateTime, default=get_current_time_jst, onupdate=get_current_time_jst)
 
 class Event(db.Model):
     """カレンダーの予定を管理するモデル。タイトル、日時、繰り返し設定、会場情報などを保持。"""
@@ -43,6 +44,8 @@ class Event(db.Model):
     description = db.Column(db.Text, nullable=True)
     recurrence_rule = db.Column(db.String(255), nullable=True)  # 単純な毎週繰り返しなどを表現
     location = db.Column(db.String(255), nullable=True)  # 会場情報
+    created_at = db.Column(db.DateTime, default=get_current_time_jst)
+    updated_at = db.Column(db.DateTime, default=get_current_time_jst, onupdate=get_current_time_jst)
 
     user = db.relationship('User', backref=db.backref('events', lazy=True))
 

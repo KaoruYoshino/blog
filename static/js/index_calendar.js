@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // ツールチップは非表示にする
         tooltip.style.display = 'none';
     
-        const modal = document.getElementById('calendarModal');
+        const modal = document.getElementById('eventModal');
         const titleInput = document.getElementById('eventTitle');
     
         if (event) {
@@ -42,37 +42,67 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // クリックでツールチップを非表示にする処理を追加
-    document.addEventListener('click', function(e) {
-        if (tooltip.style.display === 'block') {
-            // クリックされた要素がツールチップでない場合に非表示にする
-            if (!tooltip.contains(e.target)) {
-                tooltip.style.display = 'none';
-            }
-        }
-        // モーダル外クリックでモーダルを閉じる
-        const modal = document.getElementById('calendarModal');
-        if (modal.style.display === 'block' && !modal.contains(e.target)) {
-            modal.style.display = 'none';
-        }
-    });
+    // // クリックでツールチップを非表示にする処理を追加
+    // document.addEventListener('click', function(e) {
+    //     if (tooltip.style.display === 'block') {
+    //         // クリックされた要素がツールチップでない場合に非表示にする
+    //         if (!tooltip.contains(e.target)) {
+    //             tooltip.style.display = 'none';
+    //         }
+    //     }
+    //     // モーダル外クリックでモーダルを閉じる
+    //     const modal = document.getElementById('calendarModal');
+    //     if (modal.style.display === 'block' && !modal.contains(e.target)) {
+    //         modal.style.display = 'none';
+    //     }
+    // });
     
-    // モーダルの保存・キャンセルボタンのイベントハンドラ
-    document.getElementById('saveEventBtn').addEventListener('click', function() {
-        const modal = document.getElementById('calendarModal');
-        const titleInput = document.getElementById('eventTitle');
-        const eventId = modal.dataset.eventId;
+    // // モーダルの保存・キャンセルボタンのイベントハンドラ
+    // document.getElementById('saveEventBtn').addEventListener('click', function() {
+    //     const modal = document.getElementById('calendarModal');
+    //     const titleInput = document.getElementById('eventTitle');
+    //     const eventId = modal.dataset.eventId;
     
-        // ここで保存処理を実装（例: サーバーに送信など）
-        alert('保存: ' + titleInput.value + ' (ID: ' + eventId + ')');
+    //     // ここで保存処理を実装（例: サーバーに送信など）
+    //     alert('保存: ' + titleInput.value + ' (ID: ' + eventId + ')');
     
-        modal.style.display = 'none';
-    });
+    //     modal.style.display = 'none';
+    // });
     
-    document.getElementById('cancelEventBtn').addEventListener('click', function() {
-        const modal = document.getElementById('calendarModal');
-        modal.style.display = 'none';
-    });
+    // document.getElementById('cancelEventBtn').addEventListener('click', function() {
+    //     const modal = document.getElementById('calendarModal');
+    //     modal.style.display = 'none';
+    // });
+    
+    // document.getElementById('deleteEventBtn').addEventListener('click', function() {
+    //     const modal = document.getElementById('calendarModal');
+    //     const eventId = modal.dataset.eventId;
+    //     if (!eventId) {
+    //         alert('削除する予定が選択されていません。');
+    //         return;
+    //     }
+    //     if (!confirm('本当にこの予定を削除しますか？')) {
+    //         return;
+    //     }
+    //     fetch(`/api/events/${eventId}`, {
+    //         method: 'DELETE',
+    //         headers: {
+    //             'Content-Type': 'application/json'
+    //         }
+    //     }).then(response => {
+    //         if (response.ok) {
+    //             alert('予定を削除しました。');
+    //             modal.style.display = 'none';
+    //             location.reload();
+    //         } else {
+    //             response.json().then(data => {
+    //                 alert('削除に失敗しました: ' + (data.error || '不明なエラー'));
+    //             });
+    //         }
+    //     }).catch(error => {
+    //         alert('削除に失敗しました: ' + error);
+    //     });
+    // });
 
     const calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
@@ -97,7 +127,8 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         eventClick: function(info) {
             if (window.isLoggedIn) {
-                openModal(info.event, null, info.jsEvent);
+                // 編集画面に遷移
+                window.location.href = '/calendar/manage';
             } else {
                 // 未ログインユーザーはツールチップ表示
                 tooltip.textContent = info.event.title + ' @ ' + (info.event.extendedProps.location || '');
@@ -108,7 +139,8 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         dateClick: function(info) {
             if (window.isLoggedIn) {
-                openModal(null, {startStr: info.dateStr, endStr: null}, info.jsEvent);
+                // 編集画面に遷移
+                window.location.href = '/calendar/manage';
             } else {
                 // 未ログインユーザーは何もしないか、必要に応じてツールチップ表示など
                 tooltip.style.display = 'none';
