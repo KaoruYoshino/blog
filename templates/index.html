@@ -2,13 +2,21 @@
 
 {% block title %}記事一覧 - 日本語教室ボランティアブログ{% endblock %}
 
+{# ログイン状態はtemplates/base.htmlでwindow.isLoggedInとして定義済みのため、ここでは定義しません #}
 {% block content %}
 <h2>日本語教室ボランティアブログへようこそ</h2>
 {% if site_info %}
 <p>{{ site_info.description|safe }}</p>
 {% else %}
-<p>このサイトは日本語教室のボランティア活動の記録や情報共有を目的としたブログです。記事一覧は以下に表示されています。</p>
+<p>このサイトは日本語教室のボランティア活動の記録や情報共有を目的としたブログです。</p>
+{% if window.isLoggedIn %}
+  <button id="calendarEditBtn" onclick="location.href='{{ url_for('calendar_manage_view') }}'">カレンダー編集</button>
 {% endif %}
+{% endif %}
+
+<!-- カレンダー表示エリア -->
+<div id="calendar"></div>
+
 <h2>記事一覧</h2>
 <ul>
     {% for post in posts %}
@@ -20,4 +28,7 @@
     <li>記事がありません。</li>
     {% endfor %}
 </ul>
+
+<script src="/static/js/index_calendar.js"></script>
+
 {% endblock %}
