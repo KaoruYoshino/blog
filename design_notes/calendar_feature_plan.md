@@ -1,45 +1,90 @@
-# カレンダー機能実装計画
+# カレンダー機能実装計画（詳細版）
 
 ## 概要
-- カレンダーの各日付欄にタスクと会場名を常に表示する。
-- ログインユーザーは「カレンダー編集」ボタンを押下して編集画面に遷移可能。
-- 未ログインユーザーは操作不要でカレンダーを閲覧し、タスクと会場名を確認可能。
+- 会場情報をテーブル化し、イベントに紐づける形で管理
+- Google Mapの情報はログインユーザーが会場管理画面で設定・確認
+- トップページのカレンダーでは未ログインユーザーも会場情報（地図）を閲覧可能
 
-## 処理フロー
+## DB設計
+- Venueテーブル（会場）
+  - id (PK)
+  - name (必須)
+  - placeId (Google Map用ID)
+  - address (任意)
+  - lat (任意)
+  - lng (任意)
+- Eventテーブル
+  - id (PK)
+  - title (必須)
+  - start (必須)
+  - end (任意)
+  - user_id (FK, 必須)
+  - description (任意)
+  - recurrence_rule (任意)
+  - venue_id (FK, 会場テーブルの外部キー)
+  - created_at (必須)
+  - updated_at (必須)
+
+## バックエンドAPI
+- GET /api/venues : 会場一覧取得
+- GET /api/venues/<id> : 会場詳細取得
+- POST, PUT, DELETE /api/venues : 会場管理（追加・編集・削除）
+- GET /api/events : イベント一覧取得（venue情報含む）
+- POST, PUT /api/events : イベント追加・編集（venue_id対応）
+
+## フロントエンド
+- カレンダー管理画面
+  - 予定追加・編集モーダルの会場入力をプルダウンに変更
+  - 会場一覧はAPIから取得
+- 会場管理画面（新規作成）
+  - 会場情報の追加・編集・削除
+  - Google Map表示・確認機能
+- トップページカレンダー
+  - イベントクリック時に会場情報とGoogle Mapをモーダル表示
+
+## セキュリティ・UI/UX
+- 編集画面・会場管理画面はログインユーザー限定
+- トップページは閲覧のみ
+- UIの使いやすさ向上を図る
 
 ```mermaid
 flowchart TD
-  A[ページ読み込み] --> B[APIからイベントデータ取得]
-  B --> C[FullCalendarにイベントデータをセット]
-  C --> D[日付セルにタスクと会場名を表示]
-  E[ログインユーザー] --> F[カレンダー編集ボタン表示]
-  F --> G[編集ボタン押下で編集画面へ遷移]
-  H[未ログインユーザー] --> I[カレンダーを閲覧のみ]
+  subgraph DB
+    Venue[会場テーブル(Venue): id, name, placeId, address?, lat?, lng?]
+    Event[イベントテーブル(Event): id, title, start, end, user_id, description, recurrence_rule, venue_id, created_at, updated_at]
+    Venue -->|外部キーvenue_id| Event
+  end
+
+  subgraph Backend
+    API_VenueList[GET /api/venues 会場一覧取得API]
+    API_EventList[GET /api/events イベント一覧取得API]
+    API_VenueDetail[GET /api/venues/<id> 会場詳細API]
+    API_EventCreate[POST /api/events 予定追加API]
+    API_EventUpdate[PUT /api/events/<id> 予定更新API]
+    API_EventDelete[DELETE /api/events/<id> 予定削除API]
+    API_VenueManage[会場管理API(追加・編集・削除)]
+  end
+
+  subgraph Frontend
+    CalendarManage[カレンダー管理画面]
+    VenueManage[会場管理画面]
+    TopPageCalendar[トップページカレンダー]
+    EventModal[予定追加・編集モーダル]
+    VenueSelect[会場プルダウン選択]
+    GoogleMap[Google Map表示]
+    EventModal --> VenueSelect
+    VenueSelect --> GoogleMap
+    TopPageCalendar -->|イベントクリック| GoogleMap
+  end
+
+  DB --> Backend
+  Backend --> Frontend
+
+  CalendarManage --> API_EventList
+  CalendarManage --> API_VenueList
+  VenueManage --> API_VenueManage
+  TopPageCalendar --> API_EventList
+  TopPageCalendar --> API_VenueDetail
 ```
 
-## 実装箇所
-
-### フロントエンド
-- `templates/index.html`
-  - ログイン状態に応じた編集ボタンの表示制御
-  - カレンダー表示領域の調整
-- `static/js/index_calendar.js`
-  - FullCalendarのカスタムレンダリング（`dayCellDidMount`や`eventContent`）で日付セルにタスク・会場名を表示
-  - 編集ボタン押下時の画面遷移処理
-
-### バックエンド
-- `app.py`
-  - `/api/events`のGET APIでタスク・会場名を含むイベントデータを返す
-  - `/calendar/manage`の編集画面ルーティング（既存）
-
-### その他
-- `models.py`
-  - 会場名フィールドの定義確認・必要に応じて拡充
-
-## 注意点
-- UI/UXの調整（見やすさ、操作性）
-- セキュリティ（編集権限のチェック）
-
----
-
-この計画をもとに実装を進めます。
+この計画に基づき実装を進めます。
