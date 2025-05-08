@@ -1,18 +1,26 @@
+from dotenv import load_dotenv
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash, session, abort, current_app, jsonify
+from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from markdown import markdown
-from models import db, User, Post, SiteInfo, Event
+from models import db, User, Post, SiteInfo, Event, Venue
 from datetime import datetime
 from flask_migrate import Migrate
 from werkzeug.utils import secure_filename
 import uuid
 
 app = Flask(__name__)
+CORS(app, resources={
+    r"/api/*": {"origins": ["http://localhost:5000", "http://127.0.0.1:5000"]}
+})
+load_dotenv()
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_secret_key')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////app/instance/blog.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
+app.config['GOOGLE_MAPS_API_KEY'] = os.environ.get('GOOGLE_MAPS_API_KEY', '')
+app.config['GOOGLE_MAPS_API_KEY'] = os.getenv('GOOGLE_MAPS_API_KEY')
 
 db.init_app(app)
 migrate = Migrate(app, db)
@@ -77,7 +85,14 @@ def get_events():
                 'end': event.end.isoformat() if event.end else None,
                 'description': event.description,
                 'recurrence_rule': event.recurrence_rule,
-                'location': event.location,
+                'venue': {
+                    'id': event.venue.id if event.venue else None,
+                    'name': event.venue.name if event.venue else None,
+                    'placeId': event.venue.placeId if event.venue else None,
+                    'address': event.venue.address if event.venue else None,
+                    'lat': event.venue.lat if event.venue else None,
+                    'lng': event.venue.lng if event.venue else None,
+                },
                 'user_id': event.user_id
             })
         return jsonify(event_list)
@@ -85,7 +100,80 @@ def get_events():
         current_app.logger.error(f"Error in get_events: {e}")
         return jsonify({'error': 'サーバーエラーが発生しました。'}), 500
 
-# サイト概要編集
+# 会場一覧取得API
+@app.route('/api/venues', methods=['GET'])
+def get_venues():
+    if not session.get('user_id'):
+        return jsonify({'error': 'ログインが必要です。'}), 401
+    try:
+        venues = Venue.query.all()
+        venue_list = []
+        for venue in venues:
+            venue_list.append({
+                'id': venue.id,
+                'name': venue.name,
+                'placeId': venue.placeId,
+                'address': venue.address,
+                'lat': venue.lat,
+                'lng': venue.lng
+            })
+        return jsonify(venue_list)
+    except Exception as e:
+        current_app.logger.error(f"Error in get_venues: {e}")
+        return jsonify({'error': 'サーバーエラーが発生しました。'}), 500
+
+# 会場追加API
+@app.route('/api/venues', methods=['POST'])
+def create_venue():
+    if not session.get('user_id'):
+        return jsonify({'error': 'ログインが必要です。'}), 401
+    data = request.get_json()
+    try:
+        venue = Venue(
+            name=data['name'],
+            placeId=data.get('placeId'),
+            address=data.get('address'),
+            lat=data.get('lat'),
+            lng=data.get('lng')
+        )
+        db.session.add(venue)
+        db.session.commit()
+        return jsonify({'message': '会場を追加しました。', 'id': venue.id}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# 会場編集API
+@app.route('/api/venues/<int:venue_id>', methods=['PUT'])
+def update_venue(venue_id):
+    if not session.get('user_id'):
+        return jsonify({'error': 'ログインが必要です。'}), 401
+    venue = Venue.query.get_or_404(venue_id)
+    data = request.get_json()
+    try:
+        venue.name = data['name']
+        venue.placeId = data.get('placeId')
+        venue.address = data.get('address')
+        venue.lat = data.get('lat')
+        venue.lng = data.get('lng')
+        db.session.commit()
+        return jsonify({'message': '会場を更新しました。'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# 会場削除API
+@app.route('/api/venues/<int:venue_id>', methods=['DELETE'])
+def delete_venue(venue_id):
+    if not session.get('user_id'):
+        return jsonify({'error': 'ログインが必要です。'}), 401
+    venue = Venue.query.get_or_404(venue_id)
+    try:
+        db.session.delete(venue)
+        db.session.commit()
+        return jsonify({'message': '会場を削除しました。'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+# サイト概要編集API
 @app.route('/admin/siteinfo', methods=['GET', 'POST'])
 def edit_siteinfo():
     if 'user_id' not in session:
@@ -109,7 +197,7 @@ def edit_siteinfo():
 
     return render_template('site_info_form.html', site_info=site_info)
 
-# 記事投稿
+# 記事投稿API
 @app.route('/post/create', methods=['GET', 'POST'])
 def post_create():
     if not session.get('user_id'):
@@ -136,7 +224,7 @@ def post_create():
         return redirect(url_for('index'))
     return render_template('post_form.html')
 
-# 記事編集
+# 記事編集API
 @app.route('/post/<int:post_id>/edit', methods=['GET', 'POST'])
 def post_edit(post_id):
     if not session.get('user_id'):
@@ -162,7 +250,7 @@ def post_edit(post_id):
         return redirect(url_for('post_detail', post_id=post.id))
     return render_template('post_form.html', post=post)
 
-# 記事削除
+# 記事削除API
 @app.route('/post/<int:post_id>/delete', methods=['POST'])
 def post_delete(post_id):
     if not session.get('user_id'):
@@ -180,6 +268,17 @@ def calendar_manage_view():
         flash('ログインが必要です。')
         return redirect(url_for('login'))
     return render_template('calendar_manage.html')
+
+# 会場管理画面
+@app.route('/venue/manage')
+def venue_manage_view():
+    if not session.get('user_id'):
+        flash('ログインが必要です。')
+        return redirect(url_for('login'))
+    venues = Venue.query.all()
+    return render_template('venue_manage.html',
+                         venues=venues,
+                         google_maps_api_key=app.config['GOOGLE_MAPS_API_KEY'])
 
 # 予定一覧取得API
 @app.route('/api/events', methods=['GET'])

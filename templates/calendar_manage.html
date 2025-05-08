@@ -3,6 +3,7 @@
 {% block title %}カレンダー管理{% endblock %}
 
 {% block content %}
+<button id="venueManageBtn" style="margin-bottom: 10px;">会場管理</button>
 <h2>カレンダー管理画面</h2>
 
 <div id="calendar"></div>
@@ -25,9 +26,10 @@
             <input type="datetime-local" id="end" name="end" />
         </div>
         <div>
-            <label for="location">会場:</label>
-            <input type="text" id="location" name="location" list="locationHistory" />
-            <datalist id="locationHistory"></datalist>
+            <label for="venue">会場:</label>
+            <select id="venue" name="venue">
+                <option value="">選択してください</option>
+            </select>
         </div>
         <div>
             <label for="recurrence_rule">繰り返し:</label>
@@ -45,8 +47,92 @@
         <button type="submit">保存</button>
 
     </form>
+<script>
+document.getElementById('venueManageBtn').addEventListener('click', function() {
+    window.location.href = '/venue/manage';
+});
+</script>
 </div>
+<script>
+// 会場プルダウンに会場一覧をセットする関数
+    function loadVenues() {
+        fetch('/api/venues')
+            .then(response => response.json())
+            .then(data => {
+                const venueSelect = document.getElementById('venue');
+                venueSelect.innerHTML = '<option value="">選択してください</option>';
+                data.forEach(venue => {
+                    const option = document.createElement('option');
+                    option.value = venue.id;
+                    option.textContent = venue.name;
+                    venueSelect.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('会場一覧の取得に失敗しました:', error);
+            });
+    }
 
+    // モーダルを開く際に会場プルダウンを初期化し、選択状態を設定するように修正
+    function openModal(event=null, selectionInfo=null) {
+        modal.style.display = 'block';
+        loadVenues();
+        if(event) {
+            document.getElementById('modalTitle').textContent = '予定編集';
+            document.getElementById('eventId').value = event.id;
+            document.getElementById('title').value = event.title;
+            document.getElementById('start').value = event.startStr.slice(0,16);
+            document.getElementById('end').value = event.endStr ? event.endStr.slice(0,16) : '';
+            // 会場はvenue_idをセット
+            document.getElementById('venue').value = event.extendedProps.venue ? event.extendedProps.venue.id : '';
+            document.getElementById('recurrence_rule').value = event.extendedProps.recurrence_rule || '';
+            document.getElementById('description').value = event.extendedProps.description || '';
+        } else if(selectionInfo) {
+            document.getElementById('modalTitle').textContent = '予定追加';
+            document.getElementById('eventId').value = '';
+            document.getElementById('title').value = '';
+            document.getElementById('start').value = selectionInfo.startStr.slice(0,16);
+            document.getElementById('end').value = selectionInfo.endStr ? selectionInfo.endStr.slice(0,16) : '';
+            document.getElementById('venue').value = '';
+            document.getElementById('recurrence_rule').value = '';
+            document.getElementById('description').value = '';
+        }
+    }
+
+    // フォーム送信時に会場IDを送信するように修正
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const eventId = document.getElementById('eventId').value;
+        const data = {
+            title: document.getElementById('title').value,
+            start: document.getElementById('start').value,
+            end: document.getElementById('end').value,
+            venue_id: document.getElementById('venue').value,
+            recurrence_rule: document.getElementById('recurrence_rule').value,
+            description: document.getElementById('description').value
+        };
+        let url = '/api/events';
+        let method = 'POST';
+        if(eventId) {
+            url += '/' + eventId;
+            method = 'PUT';
+        }
+        fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        }).then(response => {
+            if(response.ok) {
+                modal.style.display = 'none';
+                calendar.refetchEvents();
+            } else {
+                alert('保存に失敗しました。');
+            }
+        });
+    });
+</script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const calendarEl = document.getElementById('calendar');
