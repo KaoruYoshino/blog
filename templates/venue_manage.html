@@ -30,7 +30,26 @@
         <input type="hidden" id="venueId" />
         <div>
             <label for="venueName">会場名:</label>
-            <input type="text" id="venueName" name="venueName" required />
+            <div style="display: flex; gap: 10px; position: relative;">
+                <input type="text" id="venueName" name="venueName" required autocomplete="off" />
+                <button type="button" id="searchVenueBtn">検索</button>
+                <!-- 検索候補リスト -->
+                <ul id="venueSuggestions" style="
+                    position: absolute;
+                    top: 100%;
+                    left: 0;
+                    right: 0;
+                    max-height: 200px;
+                    overflow-y: auto;
+                    background: #fff;
+                    border: 1px solid #ccc;
+                    padding: 0;
+                    margin: 0;
+                    list-style: none;
+                    z-index: 1001;
+                    display: none;
+                "></ul>
+            </div>
         </div>
         <div>
             <label for="venueAddress">住所:</label>
@@ -53,11 +72,14 @@
     </form>
 </div>
 
-<div id="map" style="width: 100%; height: 300px; margin-top: 10px;"></div>
+<div id="map" style="width: 100%; height: 300px; margin-top: 10px; display: none;"></div>
+
+<!-- Lodash (完全版を使用) -->
+<script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
 
 <script>
     // グローバル変数
-    let map, marker, venueTableBody;
+    let map, marker, venueTableBody, sessionToken, autocompleteService;
 
     // 会場一覧をテーブルに描画
     function loadVenues() {
@@ -84,32 +106,63 @@
     }
 
     // Google マップを初期化
-    function initMap(lat = 35.6895, lng = 139.6917) {
+    async function initMap(lat = 35.6895, lng = 139.6917) {
+        if (!googleMapsLoaded) {
+            try {
+                await loadGoogleMapsAPI();
+            } catch (error) {
+                console.error('Google Maps APIの読み込みに失敗:', error);
+                throw error;
+            }
+        }
+
+        const mapDiv = document.getElementById('map');
+        mapDiv.style.display = 'block';
         const center = { lat: +lat, lng: +lng };
-        map = new google.maps.Map(document.getElementById('map'), { center, zoom: 15 });
-        marker = new google.maps.Marker({
-            map,
-            position: center,
-            draggable: true,
-            title: 'ドラッグして位置を調整'
-        });
-        marker.addListener('dragend', () => {
-            const pos = marker.getPosition();
-            document.getElementById('venueLat').value = pos.lat();
-            document.getElementById('venueLng').value = pos.lng();
-        });
+
+        if (!map) {
+            map = new google.maps.Map(mapDiv, { center, zoom: 15 });
+        } else {
+            map.setCenter(center);
+        }
+
+        if (!marker) {
+            marker = new google.maps.Marker({
+                map,
+                position: center,
+                draggable: true,
+                title: 'ドラッグして位置を調整'
+            });
+            marker.addListener('dragend', () => {
+                const pos = marker.getPosition();
+                document.getElementById('venueLat').value = pos.lat();
+                document.getElementById('venueLng').value = pos.lng();
+            });
+        } else {
+            marker.setPosition(center);
+        }
     }
 
-    // Google Maps API を非同期で読み込む
+    // Google Maps API を必要時に読み込む
+    let googleMapsLoaded = false;
     function loadGoogleMapsAPI() {
-        const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places`;
-        script.async = true;
-        script.onload = () => {
-            initMap();
-            loadVenues();
-        };
-        document.head.appendChild(script);
+        return new Promise((resolve, reject) => {
+            if (googleMapsLoaded) {
+                resolve();
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places`;
+            script.async = true;
+            script.onload = () => {
+                googleMapsLoaded = true;
+                // Places ライブラリが読み込まれたらサービスを初期化
+                autocompleteService = new google.maps.places.AutocompleteService();
+                resolve();
+            };
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
     }
 
     // モーダル開閉や編集・削除ボタンのバインド
@@ -118,21 +171,127 @@
         const venueForm = document.getElementById('venueForm');
         const venueModalTitle = document.getElementById('venueModalTitle');
 
-        function openModal(edit = false, venue = null) {
+        let autocomplete = null;
+
+        async function openModal(edit = false, venue = null) {
             venueModal.style.display = 'block';
+            
+            // Google Maps APIが未ロードの場合はロード
+            if (!googleMapsLoaded) {
+                try {
+                    await loadGoogleMapsAPI();
+                } catch (error) {
+                    console.error('Google Maps APIの読み込みに失敗:', error);
+                    alert('マップの読み込みに失敗しました');
+                    return;
+                }
+            }
+
             const input = document.getElementById('venueName');
-            const autocomplete = new google.maps.places.Autocomplete(input, {
-                fields: ['place_id', 'formatted_address', 'geometry', 'name']
-            });
-            autocomplete.addListener('place_changed', () => {
-                const place = autocomplete.getPlace();
-                if (!place.geometry) return alert('情報が取得できませんでした');
+
+            const suggestionsEl = document.getElementById('venueSuggestions');
+
+            // 場所の情報を設定する関数
+            function setPlaceInfo(place) {
                 document.getElementById('venueAddress').value = place.formatted_address;
                 document.getElementById('venuePlaceId').value = place.place_id;
                 document.getElementById('venueLat').value = place.geometry.location.lat();
                 document.getElementById('venueLng').value = place.geometry.location.lng();
+
+                document.getElementById('map').style.display = 'block';
                 map.setCenter(place.geometry.location);
                 marker.setPosition(place.geometry.location);
+            }
+
+            // 候補をクリックしたときの処理
+            async function handlePlaceSelect(placeId) {
+                try {
+                    if (!map) {
+                        await initMap();
+                    }
+
+                    const service = new google.maps.places.PlacesService(map);
+                    
+                    const place = await new Promise((resolve, reject) => {
+                        service.getDetails({
+                            placeId: placeId,
+                            fields: ['place_id', 'formatted_address', 'geometry', 'name']
+                        }, (result, status) => {
+                            if (status === google.maps.places.PlacesServiceStatus.OK) {
+                                resolve(result);
+                            } else {
+                                reject(new Error('場所の詳細情報の取得に失敗しました'));
+                            }
+                        });
+                    });
+
+                    setPlaceInfo(place);
+                    suggestionsEl.style.display = 'none';
+                } catch (error) {
+                    console.error('場所の選択に失敗:', error);
+                    alert(error.message || '場所の選択中にエラーが発生しました');
+                }
+            }
+
+            // 検索ボタンのイベントハンドラ
+            const searchBtn = document.getElementById('searchVenueBtn');
+            const searchHandler = async () => {
+                const value = input.value.trim();
+                if (!value) {
+                    alert('会場名を入力してください');
+                    return;
+                }
+
+                try {
+                    const predictions = await new Promise((resolve, reject) => {
+                        autocompleteService.getQueryPredictions({
+                            input: value,
+                            componentRestrictions: { country: 'jp' },
+                            types: ['establishment'],
+                            language: 'ja'
+                        }, (results, status) => {
+                            if (status === google.maps.places.PlacesServiceStatus.OK) {
+                                resolve(results || []);
+                            } else {
+                                reject(new Error('検索候補の取得に失敗しました'));
+                            }
+                        });
+                    });
+
+                    // 候補一覧を表示
+                    suggestionsEl.innerHTML = '';
+                    if (predictions.length > 0) {
+                        predictions.forEach(pred => {
+                            const li = document.createElement('li');
+                            li.textContent = pred.description;
+                            li.style.padding = '8px';
+                            li.style.cursor = 'pointer';
+                            li.addEventListener('click', () => {
+                                input.value = pred.description;
+                                handlePlaceSelect(pred.place_id);
+                            });
+                            suggestionsEl.appendChild(li);
+                        });
+                        suggestionsEl.style.display = 'block';
+                    } else {
+                        alert('検索結果が見つかりませんでした');
+                    }
+                } catch (error) {
+                    console.error('検索に失敗:', error);
+                    alert(error.message || '検索中にエラーが発生しました');
+                }
+            };
+
+            // 検索ボタンのイベントハンドラを設定
+            searchBtn.onclick = searchHandler;
+
+            // 候補リスト以外をクリックしたら候補を非表示に
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#venueSuggestions') &&
+                    !e.target.closest('#venueName') &&
+                    !e.target.closest('#searchVenueBtn')) {
+                    suggestionsEl.style.display = 'none';
+                }
             });
 
             if (edit && venue) {
@@ -141,12 +300,25 @@
                 document.getElementById('venueName').value = venue.name;
                 document.getElementById('venueAddress').value = venue.address || '';
                 document.getElementById('venuePlaceId').value = venue.placeId || '';
-                initMap(venue.lat, venue.lng);
+                
+                // 地図の初期化（編集時）
+                try {
+                    document.getElementById('map').style.display = 'block';
+                    await initMap(venue.lat, venue.lng);
+                } catch (error) {
+                    console.error('地図の初期化に失敗:', error);
+                    alert('地図の初期化中にエラーが発生しました');
+                }
             } else {
+                // 新規追加時はフォームをリセット
                 venueModalTitle.textContent = '会場追加';
                 venueForm.reset();
-                document.getElementById('venueId').value = '';
-                initMap();
+                document.getElementById('map').style.display = 'none';
+                // マーカーをリセット
+                if (marker) {
+                    marker.setMap(null);
+                    marker = null;
+                }
             }
         }
 
@@ -154,10 +326,19 @@
         venueTableBody.addEventListener('click', e => {
             if (e.target.classList.contains('editBtn')) {
                 const id = e.target.dataset.id;
-                fetch('/api/venues').then(r => r.json()).then(list => {
-                    const v = list.find(x => x.id == id);
-                    if (v) openModal(true, v);
-                });
+                fetch('/api/venues')
+                    .then(r => r.json())
+                    .then(async list => {
+                        const v = list.find(x => x.id == id);
+                        if (v) {
+                            try {
+                                await openModal(true, v);
+                            } catch (error) {
+                                console.error('編集モーダルの初期化に失敗:', error);
+                                alert('エラーが発生しました');
+                            }
+                        }
+                    });
             }
             if (e.target.classList.contains('deleteBtn')) {
                 if (!confirm('削除しますか？')) return;
@@ -168,7 +349,14 @@
 
         // 新規追加ボタン
         document.getElementById('addVenueBtn')
-            .addEventListener('click', () => openModal());
+            .addEventListener('click', async () => {
+                try {
+                    await openModal();
+                } catch (error) {
+                    console.error('モーダルの初期化に失敗:', error);
+                    alert('エラーが発生しました');
+                }
+            });
 
         // フォーム送信
         venueForm.addEventListener('submit', e => {
@@ -202,8 +390,8 @@
     // ページ読み込み後の初期処理
     document.addEventListener('DOMContentLoaded', () => {
         venueTableBody = document.querySelector('#venueTable tbody');
-        loadGoogleMapsAPI();
         bindModalEvents();
+        loadVenues();
     });
 </script>
 {% endblock %}
