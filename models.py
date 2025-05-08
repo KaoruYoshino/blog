@@ -32,9 +32,21 @@ class SiteInfo(db.Model):
     description = db.Column(db.Text, nullable=False)
     updated_at = db.Column(db.DateTime, default=get_current_time_jst, onupdate=get_current_time_jst)
 
+class Venue(db.Model):
+    """会場情報を管理するモデル。Google MapのplaceIdなどを保持。"""
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    placeId = db.Column(db.String(255), nullable=True)
+    address = db.Column(db.String(255), nullable=True)
+    lat = db.Column(db.Float, nullable=True)
+    lng = db.Column(db.Float, nullable=True)
+
+    def __repr__(self):
+        return f'<Venue {self.name}>'
+
 class Event(db.Model):
     """カレンダーの予定を管理するモデル。タイトル、日時、繰り返し設定、会場情報などを保持。"""
-    __tablename__ = 'events'
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
@@ -43,11 +55,12 @@ class Event(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     description = db.Column(db.Text, nullable=True)
     recurrence_rule = db.Column(db.String(255), nullable=True)  # 単純な毎週繰り返しなどを表現
-    location = db.Column(db.String(255), nullable=True)  # 会場情報
+    venue_id = db.Column(db.Integer, db.ForeignKey('venue.id'), nullable=True)  # 会場情報の外部キー
     created_at = db.Column(db.DateTime, default=get_current_time_jst)
     updated_at = db.Column(db.DateTime, default=get_current_time_jst, onupdate=get_current_time_jst)
 
-    user = db.relationship('User', backref=db.backref('events', lazy=True))
+    user = db.relationship('User', backref=db.backref('event', lazy=True))
+    venue = db.relationship('Venue', backref=db.backref('event', lazy=True))
 
     def __repr__(self):
         return f'<Event {self.title} ({self.start} - {self.end})>'

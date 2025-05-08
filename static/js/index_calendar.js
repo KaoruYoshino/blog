@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 container.style.marginTop = '2px';
                 events.forEach(event => {
                     const eventDiv = document.createElement('div');
-                    eventDiv.textContent = event.title + (event.extendedProps.location ? ' @ ' + event.extendedProps.location : '');
+                    eventDiv.textContent = event.title + (event.extendedProps.venue && event.extendedProps.venue.name ? ' @ ' + event.extendedProps.venue.name : '');
                     container.appendChild(eventDiv);
                 });
                 info.el.appendChild(container);

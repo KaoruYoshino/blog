@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}会場管理{% endblock %}
+
+{% block content %}
+<h2>会場管理画面</h2>
+
+<button id="addVenueBtn">新規会場追加</button>
+
+<table id="venueTable" border="1" cellpadding="5" cellspacing="0">
+    <thead>
+        <tr>
+            <th>会場名</th>
+            <th>住所</th>
+            <th>Google Place ID</th>
+            <th>緯度</th>
+            <th>経度</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        <!-- 会場一覧はJavaScriptで動的に挿入 -->
+    </tbody>
+</table>
+
+<!-- 会場追加・編集モーダル -->
+<div id="venueModal" style="display:none; position:fixed; top:20%; left:30%; background:#fff; border:1px solid #ccc; padding:20px; z-index:1000;">
+    <h3 id="venueModalTitle">会場追加</h3>
+    <form id="venueForm">
+        <input type="hidden" id="venueId" />
+        <div>
+            <label for="venueName">会場名:</label>
+            <input type="text" id="venueName" name="venueName" required />
+        </div>
+        <div>
+            <label for="venueAddress">住所:</label>
+            <input type="text" id="venueAddress" name="venueAddress" />
+        </div>
+        <div>
+            <label for="venuePlaceId">Google Place ID:</label>
+            <input type="text" id="venuePlaceId" name="venuePlaceId" />
+        </div>
+        <div>
+            <label for="venueLat">緯度:</label>
+            <input type="number" step="any" id="venueLat" name="venueLat" />
+        </div>
+        <div>
+            <label for="venueLng">経度:</label>
+            <input type="number" step="any" id="venueLng" name="venueLng" />
+        </div>
+        <button type="button" id="venueCancelBtn">キャンセル</button>
+        <button type="submit">保存</button>
+    </form>
+</div>
+
+<div id="map" style="width: 100%; height: 300px; margin-top: 10px;"></div>
+
+<script>
+    // グローバル変数
+    let map, marker, venueTableBody;
+
+    // 会場一覧をテーブルに描画
+    function loadVenues() {
+        fetch('/api/venues')
+            .then(res => res.json())
+            .then(data => {
+                venueTableBody.innerHTML = '';
+                data.forEach(venue => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+              <td>${venue.name}</td>
+              <td>${venue.address || ''}</td>
+              <td>${venue.placeId || ''}</td>
+              <td>${venue.lat || ''}</td>
+              <td>${venue.lng || ''}</td>
+              <td>
+                <button class="editBtn" data-id="${venue.id}">編集</button>
+                <button class="deleteBtn" data-id="${venue.id}">削除</button>
+              </td>
+            `;
+                    venueTableBody.appendChild(tr);
+                });
+            });
+    }
+
+    // Google マップを初期化
+    function initMap(lat = 35.6895, lng = 139.6917) {
+        const center = { lat: +lat, lng: +lng };
+        map = new google.maps.Map(document.getElementById('map'), { center, zoom: 15 });
+        marker = new google.maps.Marker({
+            map,
+            position: center,
+            draggable: true,
+            title: 'ドラッグして位置を調整'
+        });
+        marker.addListener('dragend', () => {
+            const pos = marker.getPosition();
+            document.getElementById('venueLat').value = pos.lat();
+            document.getElementById('venueLng').value = pos.lng();
+        });
+    }
+
+    // Google Maps API を非同期で読み込む
+    function loadGoogleMapsAPI() {
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places`;
+        script.async = true;
+        script.onload = () => {
+            initMap();
+            loadVenues();
+        };
+        document.head.appendChild(script);
+    }
+
+    // モーダル開閉や編集・削除ボタンのバインド
+    function bindModalEvents() {
+        const venueModal = document.getElementById('venueModal');
+        const venueForm = document.getElementById('venueForm');
+        const venueModalTitle = document.getElementById('venueModalTitle');
+
+        function openModal(edit = false, venue = null) {
+            venueModal.style.display = 'block';
+            const input = document.getElementById('venueName');
+            const autocomplete = new google.maps.places.Autocomplete(input, {
+                fields: ['place_id', 'formatted_address', 'geometry', 'name']
+            });
+            autocomplete.addListener('place_changed', () => {
+                const place = autocomplete.getPlace();
+                if (!place.geometry) return alert('情報が取得できませんでした');
+                document.getElementById('venueAddress').value = place.formatted_address;
+                document.getElementById('venuePlaceId').value = place.place_id;
+                document.getElementById('venueLat').value = place.geometry.location.lat();
+                document.getElementById('venueLng').value = place.geometry.location.lng();
+                map.setCenter(place.geometry.location);
+                marker.setPosition(place.geometry.location);
+            });
+
+            if (edit && venue) {
+                venueModalTitle.textContent = '会場編集';
+                document.getElementById('venueId').value = venue.id;
+                document.getElementById('venueName').value = venue.name;
+                document.getElementById('venueAddress').value = venue.address || '';
+                document.getElementById('venuePlaceId').value = venue.placeId || '';
+                initMap(venue.lat, venue.lng);
+            } else {
+                venueModalTitle.textContent = '会場追加';
+                venueForm.reset();
+                document.getElementById('venueId').value = '';
+                initMap();
+            }
+        }
+
+        // テーブルのクリック
+        venueTableBody.addEventListener('click', e => {
+            if (e.target.classList.contains('editBtn')) {
+                const id = e.target.dataset.id;
+                fetch('/api/venues').then(r => r.json()).then(list => {
+                    const v = list.find(x => x.id == id);
+                    if (v) openModal(true, v);
+                });
+            }
+            if (e.target.classList.contains('deleteBtn')) {
+                if (!confirm('削除しますか？')) return;
+                fetch(`/api/venues/${e.target.dataset.id}`, { method: 'DELETE' })
+                    .then(r => r.ok ? loadVenues() : alert('失敗しました'));
+            }
+        });
+
+        // 新規追加ボタン
+        document.getElementById('addVenueBtn')
+            .addEventListener('click', () => openModal());
+
+        // フォーム送信
+        venueForm.addEventListener('submit', e => {
+            e.preventDefault();
+            const id = document.getElementById('venueId').value;
+            const data = {
+                name: document.getElementById('venueName').value,
+                address: document.getElementById('venueAddress').value,
+                placeId: document.getElementById('venuePlaceId').value,
+                lat: parseFloat(document.getElementById('venueLat').value) || null,
+                lng: parseFloat(document.getElementById('venueLng').value) || null
+            };
+            fetch(id ? `/api/venues/${id}` : '/api/venues', {
+                method: id ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }).then(r => {
+                if (r.ok) {
+                    alert('保存しました');
+                    venueModal.style.display = 'none';
+                    loadVenues();
+                } else alert('保存に失敗');
+            });
+        });
+
+        // キャンセルボタン
+        document.getElementById('venueCancelBtn')
+            .addEventListener('click', () => venueModal.style.display = 'none');
+    }
+
+    // ページ読み込み後の初期処理
+    document.addEventListener('DOMContentLoaded', () => {
+        venueTableBody = document.querySelector('#venueTable tbody');
+        loadGoogleMapsAPI();
+        bindModalEvents();
+    });
+</script>
+{% endblock %}
