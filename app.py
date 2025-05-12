@@ -69,37 +69,6 @@ def calendar_manage():
         return redirect(url_for('login'))
     return render_template('calendar_manage.html')
 
-# 予定一覧取得API
-@app.route('/api/events', methods=['GET'])
-def get_events():
-    if not session.get('user_id'):
-        return jsonify({'error': 'ログインが必要です。'}), 401
-    try:
-        events = Event.query.all()
-        event_list = []
-        for event in events:
-            event_list.append({
-                'id': event.id,
-                'title': event.title,
-                'start': event.start.isoformat(),
-                'end': event.end.isoformat() if event.end else None,
-                'description': event.description,
-                'recurrence_rule': event.recurrence_rule,
-                'venue': {
-                    'id': event.venue.id if event.venue else None,
-                    'name': event.venue.name if event.venue else None,
-                    'placeId': event.venue.placeId if event.venue else None,
-                    'address': event.venue.address if event.venue else None,
-                    'lat': event.venue.lat if event.venue else None,
-                    'lng': event.venue.lng if event.venue else None,
-                },
-                'user_id': event.user_id
-            })
-        return jsonify(event_list)
-    except Exception as e:
-        current_app.logger.error(f"Error in get_events: {e}")
-        return jsonify({'error': 'サーバーエラーが発生しました。'}), 500
-
 # 会場一覧取得API
 @app.route('/api/venues', methods=['GET'])
 def get_venues():
@@ -282,23 +251,34 @@ def venue_manage_view():
 
 # 予定一覧取得API
 @app.route('/api/events', methods=['GET'])
-def get_events_view():
+def get_events():
     if not session.get('user_id'):
         return jsonify({'error': 'ログインが必要です。'}), 401
-    events = Event.query.all()
-    event_list = []
-    for event in events:
-        event_list.append({
-            'id': event.id,
-            'title': event.title,
-            'start': event.start.isoformat(),
-            'end': event.end.isoformat() if event.end else None,
-            'description': event.description,
-            'recurrence_rule': event.recurrence_rule,
-            'location': event.location,
-            'user_id': event.user_id
-        })
-    return jsonify(event_list)
+    try:
+        events = Event.query.all()
+        event_list = []
+        for event in events:
+            event_list.append({
+                'id': event.id,
+                'title': event.title,
+                'start': event.start.isoformat(),
+                'end': event.end.isoformat() if event.end else None,
+                'description': event.description,
+                'recurrence_rule': event.recurrence_rule,
+                'venue': {
+                    'id': event.venue.id if event.venue else None,
+                    'name': event.venue.name if event.venue else None,
+                    'placeId': event.venue.placeId if event.venue else None,
+                    'address': event.venue.address if event.venue else None,
+                    'lat': event.venue.lat if event.venue else None,
+                    'lng': event.venue.lng if event.venue else None,
+                },
+                'user_id': event.user_id
+            })
+        return jsonify(event_list)
+    except Exception as e:
+        current_app.logger.error(f"Error in get_events: {e}")
+        return jsonify({'error': 'サーバーエラーが発生しました。'}), 500
 
 # 予定追加API
 @app.route('/api/events', methods=['POST'])
@@ -307,11 +287,18 @@ def create_event():
         return jsonify({'error': 'ログインが必要です。'}), 401
     data = request.get_json()
     try:
+        # venue_idが指定されている場合は、会場の存在確認
+        venue_id = data.get('venue_id')
+        if venue_id:
+            venue = Venue.query.get(venue_id)
+            if not venue:
+                return jsonify({'error': '指定された会場が見つかりません。'}), 404
+
         event = Event(
             title=data['title'],
             start=datetime.fromisoformat(data['start']),
             end=datetime.fromisoformat(data['end']) if data.get('end') else None,
-            location=data.get('location'),
+            venue_id=venue_id,
             recurrence_rule=data.get('recurrence_rule'),
             description=data.get('description'),
             user_id=session['user_id']
@@ -332,10 +319,17 @@ def update_event(event_id):
         return jsonify({'error': '権限がありません。'}), 403
     data = request.get_json()
     try:
+        # venue_idが指定されている場合は、会場の存在確認
+        venue_id = data.get('venue_id')
+        if venue_id:
+            venue = Venue.query.get(venue_id)
+            if not venue:
+                return jsonify({'error': '指定された会場が見つかりません。'}), 404
+
         event.title = data['title']
         event.start = datetime.fromisoformat(data['start'])
         event.end = datetime.fromisoformat(data['end']) if data.get('end') else None
-        event.location = data.get('location')
+        event.venue_id = venue_id
         event.recurrence_rule = data.get('recurrence_rule')
         event.description = data.get('description')
         db.session.commit()

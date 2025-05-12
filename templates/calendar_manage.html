@@ -53,6 +53,13 @@ document.getElementById('venueManageBtn').addEventListener('click', function() {
 });
 </script>
 </div>
+
+<!-- FullCalendar CDNとJavaScriptの読み込み -->
+<link href='https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.8/main.min.css' rel='stylesheet' />
+<script src='https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.8/main.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/@fullcalendar/daygrid@6.1.8/main.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/@fullcalendar/interaction@6.1.8/main.min.js'></script>
+
 <script>
 // 会場プルダウンに会場一覧をセットする関数
     function loadVenues() {
@@ -164,24 +171,39 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function openModal(event=null, selectionInfo=null) {
         modal.style.display = 'block';
-        if(event) {
-            document.getElementById('modalTitle').textContent = '予定編集';
-            document.getElementById('eventId').value = event.id;
-            document.getElementById('title').value = event.title;
-            document.getElementById('start').value = event.startStr.slice(0,16);
-            document.getElementById('end').value = event.endStr ? event.endStr.slice(0,16) : '';
-            document.getElementById('location').value = event.extendedProps.location || '';
-            document.getElementById('recurrence_rule').value = event.extendedProps.recurrence_rule || '';
-            document.getElementById('description').value = event.extendedProps.description || '';
-        } else if(selectionInfo) {
-            document.getElementById('modalTitle').textContent = '予定追加';
-            document.getElementById('eventId').value = '';
-            document.getElementById('title').value = '';
-            document.getElementById('start').value = selectionInfo.startStr.slice(0,16);
-            document.getElementById('end').value = selectionInfo.endStr ? selectionInfo.endStr.slice(0,16) : '';
-            document.getElementById('location').value = '';
-            document.getElementById('recurrence_rule').value = '';
-            document.getElementById('description').value = '';
+        loadVenues(); // 会場一覧を取得
+
+        const modalTitle = document.getElementById('modalTitle');
+        const eventId = document.getElementById('eventId');
+        const titleInput = document.getElementById('title');
+        const startInput = document.getElementById('start');
+        const endInput = document.getElementById('end');
+        const venueSelect = document.getElementById('venue');
+        const recurrenceSelect = document.getElementById('recurrence_rule');
+        const descriptionInput = document.getElementById('description');
+
+        if (event) {
+            modalTitle.textContent = '予定編集';
+            eventId.value = event.id;
+            titleInput.value = event.title;
+            startInput.value = event.startStr.slice(0,16);
+            endInput.value = event.endStr ? event.endStr.slice(0,16) : '';
+            recurrenceSelect.value = event.extendedProps.recurrence_rule || '';
+            descriptionInput.value = event.extendedProps.description || '';
+            
+            // 会場情報の設定
+            if (event.extendedProps.venue) {
+                venueSelect.value = event.extendedProps.venue.id;
+            }
+        } else if (selectionInfo) {
+            modalTitle.textContent = '予定追加';
+            eventId.value = '';
+            titleInput.value = '';
+            startInput.value = selectionInfo.startStr.slice(0,16);
+            endInput.value = selectionInfo.endStr ? selectionInfo.endStr.slice(0,16) : '';
+            venueSelect.value = '';
+            recurrenceSelect.value = '';
+            descriptionInput.value = '';
         }
     }
 
@@ -218,6 +240,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // イベント保存処理
     form.addEventListener('submit', function(e) {
         e.preventDefault();
         const eventId = document.getElementById('eventId').value;
@@ -225,16 +248,14 @@ document.addEventListener('DOMContentLoaded', function() {
             title: document.getElementById('title').value,
             start: document.getElementById('start').value,
             end: document.getElementById('end').value,
-            location: document.getElementById('location').value,
+            venue_id: document.getElementById('venue').value || null,
             recurrence_rule: document.getElementById('recurrence_rule').value,
             description: document.getElementById('description').value
         };
-        let url = '/api/events';
-        let method = 'POST';
-        if(eventId) {
-            url += '/' + eventId;
-            method = 'PUT';
-        }
+
+        const url = eventId ? `/api/events/${eventId}` : '/api/events';
+        const method = eventId ? 'PUT' : 'POST';
+
         fetch(url, {
             method: method,
             headers: {
@@ -242,25 +263,17 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify(data)
         }).then(response => {
-            if(response.ok) {
+            if (response.ok) {
                 modal.style.display = 'none';
                 calendar.refetchEvents();
-                updateLocationHistory(data.location);
             } else {
                 alert('保存に失敗しました。');
             }
+        }).catch(error => {
+            console.error('保存エラー:', error);
+            alert('保存中にエラーが発生しました。');
         });
     });
-
-    function updateLocationHistory(location) {
-        if(!location) return;
-        let options = Array.from(locationHistory.options).map(opt => opt.value);
-        if(!options.includes(location)) {
-            let option = document.createElement('option');
-            option.value = location;
-            locationHistory.appendChild(option);
-        }
-    }
 });
 </script>
 

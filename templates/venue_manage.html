@@ -192,7 +192,36 @@
             const suggestionsEl = document.getElementById('venueSuggestions');
 
             // 場所の情報を設定する関数
+            // 建物名を抽出する関数
+            function extractBuildingName(adrAddress) {
+                if (!adrAddress) return '';
+
+                // DOMParserを使用してHTML文字列をパース
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(adrAddress, 'text/html');
+                
+                // extended-addressから建物名を取得
+                const extendedAddress = doc.querySelector('.extended-address');
+                if (extendedAddress) {
+                    return extendedAddress.textContent.trim();
+                }
+
+                // premises（建物名）を取得
+                const premises = doc.querySelector('.premise');
+                if (premises) {
+                    return premises.textContent.trim();
+                }
+
+                return '';
+            }
+
             function setPlaceInfo(place) {
+                // 建物名を抽出（adr_addressがある場合はそこから、なければname使用）
+                const buildingName = place.adr_address ?
+                    extractBuildingName(place.adr_address) || place.name :
+                    place.name;
+
+                document.getElementById('venueName').value = buildingName;
                 document.getElementById('venueAddress').value = place.formatted_address;
                 document.getElementById('venuePlaceId').value = place.place_id;
                 document.getElementById('venueLat').value = place.geometry.location.lat();
@@ -201,6 +230,10 @@
                 document.getElementById('map').style.display = 'block';
                 map.setCenter(place.geometry.location);
                 marker.setPosition(place.geometry.location);
+
+                // デバッグ用（開発時のみ）
+                console.log('adr_address:', place.adr_address);
+                console.log('Extracted building name:', buildingName);
             }
 
             // 候補をクリックしたときの処理
@@ -215,7 +248,7 @@
                     const place = await new Promise((resolve, reject) => {
                         service.getDetails({
                             placeId: placeId,
-                            fields: ['place_id', 'formatted_address', 'geometry', 'name']
+                            fields: ['place_id', 'formatted_address', 'geometry', 'name', 'adr_address']
                         }, (result, status) => {
                             if (status === google.maps.places.PlacesServiceStatus.OK) {
                                 resolve(result);

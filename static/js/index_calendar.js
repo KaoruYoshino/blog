@@ -117,7 +117,8 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         events: '/api/events',
         eventMouseEnter: function(info) {
-            tooltip.textContent = info.event.title + ' @ ' + (info.event.extendedProps.location || '');
+            const venueName = info.event.extendedProps.venue ? info.event.extendedProps.venue.name : '';
+            tooltip.textContent = info.event.title + (venueName ? ' @ ' + venueName : '');
             tooltip.style.display = 'block';
             tooltip.style.left = info.jsEvent.pageX + 10 + 'px';
             tooltip.style.top = info.jsEvent.pageY + 10 + 'px';
@@ -131,7 +132,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.location.href = '/calendar/manage';
             } else {
                 // 未ログインユーザーはツールチップ表示
-                tooltip.textContent = info.event.title + ' @ ' + (info.event.extendedProps.location || '');
+                const venueName = info.event.extendedProps.venue ? info.event.extendedProps.venue.name : '';
+                tooltip.textContent = info.event.title + (venueName ? ' @ ' + venueName : '');
                 tooltip.style.display = 'block';
                 tooltip.style.left = info.jsEvent.pageX + 10 + 'px';
                 tooltip.style.top = info.jsEvent.pageY + 10 + 'px';
