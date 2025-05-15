@@ -64,3 +64,13 @@ class Event(db.Model):
 
     def __repr__(self):
         return f'<Event {self.title} ({self.start} - {self.end})>'
+
+class Settings(db.Model):
+    """サイトの設定を管理するモデル。管理者メールアドレスやreCAPTCHA設定などを保持。"""
+    id = db.Column(db.Integer, primary_key=True)
+    admin_email = db.Column(db.String(120), nullable=False)
+    enable_recaptcha = db.Column(db.Boolean, default=True)
+    updated_at = db.Column(db.DateTime, default=get_current_time_jst, onupdate=get_current_time_jst)
+
+    def __repr__(self):
+        return f'<Settings admin_email={self.admin_email}>'

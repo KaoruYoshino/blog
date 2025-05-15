@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{% block title %}日本語教室ボランティアブログ{% endblock %}</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
     <!-- FullCalendar CSS -->
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
@@ -14,10 +16,21 @@
     <header>
         <h1><a href="{{ url_for('index') }}">日本語教室ボランティアブログ</a></h1>
         <nav>
+            <a href="{{ url_for('contact') }}">お問い合わせ</a>
             {% if session.get('user_id') %}
+                <div class="dropdown">
+                    <button class="btn btn-link dropdown-toggle" type="button" id="adminMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                        管理メニュー
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="adminMenu">
+                        <li><a class="dropdown-item" href="{{ url_for('post_create') }}">記事投稿</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('admin_settings') }}">管理者設定</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('edit_siteinfo') }}">サイト概要編集</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('venue_manage_view') }}">会場管理</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('calendar_manage_view') }}">カレンダー管理</a></li>
+                    </ul>
+                </div>
                 <a href="{{ url_for('logout') }}">ログアウト</a>
-                <a href="{{ url_for('post_create') }}">記事投稿</a>
-                <a href="{{ url_for('edit_siteinfo') }}">サイト概要編集</a>
                 <script>
                     window.isLoggedIn = true;
                 </script>
@@ -43,5 +56,7 @@
     <footer>
         <small>© 2025 日本語教室ボランティアブログ</small>
     </footer>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

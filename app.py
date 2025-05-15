@@ -4,7 +4,10 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from markdown import markdown
-from models import db, User, Post, SiteInfo, Event, Venue
+from models import db, User, Post, SiteInfo, Event, Venue, Settings
+from forms import ContactForm
+from flask_mail import Mail, Message
+from flask_wtf.csrf import CSRFProtect
 from datetime import datetime
 from flask_migrate import Migrate
 from werkzeug.utils import secure_filename
@@ -20,10 +23,101 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////app/instance/blog.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['GOOGLE_MAPS_API_KEY'] = os.environ.get('GOOGLE_MAPS_API_KEY', '')
-app.config['GOOGLE_MAPS_API_KEY'] = os.getenv('GOOGLE_MAPS_API_KEY')
+
+# メール設定
+app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True').lower() == 'true'
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER')
+
+# reCAPTCHA設定
+app.config['RECAPTCHA_ENABLED'] = os.getenv('RECAPTCHA_ENABLED', 'True').lower() == 'true'
+app.config['RECAPTCHA_SITE_KEY'] = os.getenv('RECAPTCHA_SITE_KEY', '')
+app.config['RECAPTCHA_SECRET_KEY'] = os.getenv('RECAPTCHA_SECRET_KEY', '')
 
 db.init_app(app)
 migrate = Migrate(app, db)
+mail = Mail(app)
+csrf = CSRFProtect(app)
+
+def send_contact_email(form_data):
+    """問い合わせメールを送信する関数"""
+    try:
+        # 管理者メールアドレスの取得
+        settings = Settings.query.first()
+        if not settings or not settings.admin_email:
+            current_app.logger.error("管理者メールアドレスが設定されていません。")
+            return False
+
+        # メール本文の作成
+        body = f"""
+新しい問い合わせが届きました。
+
+お名前: {form_data.name.data if form_data.name.data else '未入力'}
+メールアドレス: {form_data.email.data}
+件名: {form_data.subject.data}
+
+お問い合わせ内容:
+{form_data.message.data}
+        """
+
+        # メールの送信
+        msg = Message(
+            subject=f'[お問い合わせ] {form_data.subject.data}',
+            recipients=[settings.admin_email],
+            body=body,
+            reply_to=form_data.email.data
+        )
+        mail.send(msg)
+        return True
+    except Exception as e:
+        current_app.logger.error(f"メール送信エラー: {e}")
+        return False
+
+@app.route('/contact', methods=['GET', 'POST'])
+def contact():
+    """問い合わせフォームの処理"""
+    form = ContactForm()
+    
+    if request.method == 'POST':
+        # AJAXリクエストかどうかを確認
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        
+        if form.validate_on_submit():
+            # ハニーポットチェック
+            if form.website.data:
+                if is_ajax:
+                    return jsonify({'success': False, 'message': 'スパムと判断されました。'}), 400
+                flash('スパムと判断されました。', 'error')
+                return redirect(url_for('contact'))
+
+            # メール送信
+            if send_contact_email(form):
+                if is_ajax:
+                    return jsonify({
+                        'success': True,
+                        'message': 'お問い合わせを送信しました。'
+                    })
+                flash('お問い合わせを送信しました。', 'success')
+                return redirect(url_for('index'))
+            else:
+                if is_ajax:
+                    return jsonify({
+                        'success': False,
+                        'message': 'メールの送信に失敗しました。しばらく経ってからもう一度お試しください。'
+                    }), 500
+                flash('メールの送信に失敗しました。しばらく経ってからもう一度お試しください。', 'error')
+        else:
+            if is_ajax:
+                return jsonify({
+                    'success': False,
+                    'message': '入力内容を確認してください。',
+                    'errors': form.errors
+                }), 400
+
+    return render_template('contact.html', form=form)
 
 #トップページ
 @app.route('/')
@@ -369,3 +463,53 @@ def upload_image():
 # 画像形式のチェック
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
+
+@app.route('/admin/settings', methods=['GET', 'POST'])
+def admin_settings():
+    """管理者設定の処理"""
+    if not session.get('user_id'):
+        flash('ログインが必要です。')
+        return redirect(url_for('login'))
+
+    settings = Settings.query.first()
+    if not settings:
+        settings = Settings(
+            admin_email=app.config['MAIL_DEFAULT_SENDER'],
+            enable_recaptcha=app.config['RECAPTCHA_ENABLED']
+        )
+        db.session.add(settings)
+        db.session.commit()
+
+    if request.method == 'POST':
+        email = request.form.get('admin_email', '').strip()
+        enable_recaptcha = request.form.get('enable_recaptcha') == 'on'
+
+        if not email:
+            flash('管理者メールアドレスは必須です。', 'error')
+        else:
+            settings.admin_email = email
+            settings.enable_recaptcha = enable_recaptcha
+            db.session.commit()
+            flash('設定を更新しました。', 'success')
+            return redirect(url_for('admin_settings'))
+
+    return render_template('admin/settings.html', settings=settings)
+
+def init_settings():
+    """初期設定の確認と作成"""
+    try:
+        settings = Settings.query.first()
+        if not settings:
+            settings = Settings(
+                admin_email=app.config['MAIL_DEFAULT_SENDER'],
+                enable_recaptcha=app.config['RECAPTCHA_ENABLED']
+            )
+            db.session.add(settings)
+            db.session.commit()
+            current_app.logger.info("管理者設定を初期化しました。")
+    except Exception as e:
+        current_app.logger.error(f"初期設定の作成に失敗しました: {e}")
+
+# アプリケーション起動時に初期設定を確認
+with app.app_context():
+    init_settings()

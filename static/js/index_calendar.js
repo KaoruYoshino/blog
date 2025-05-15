@@ -1,4 +1,15 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // カレンダー編集ボタンのイベントハンドラ
+    const calendarEditBtn = document.getElementById('calendarEditBtn');
+    if (calendarEditBtn) {
+        calendarEditBtn.addEventListener('click', function() {
+            const url = this.getAttribute('data-url');
+            if (url) {
+                window.location.href = url;
+            }
+        });
+    }
+
     const calendarEl = document.getElementById('calendar');
     const tooltip = document.createElement('div');
     tooltip.style.position = 'absolute';
