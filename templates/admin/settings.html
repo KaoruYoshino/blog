@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}管理者設定 - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">管理者設定</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('admin_settings') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="mb-3">
+                    <label for="admin_email" class="form-label">管理者メールアドレス <span class="text-danger">*</span></label>
+                    <input type="email" class="form-control" id="admin_email" name="admin_email" 
+                           value="{{ settings.admin_email }}" required>
+                    <div class="form-text">問い合わせメールの送信先アドレスです。</div>
+                </div>
+
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="enable_recaptcha" name="enable_recaptcha"
+                           {% if settings.enable_recaptcha %}checked{% endif %}>
+                    <label class="form-check-label" for="enable_recaptcha">reCAPTCHAを有効にする</label>
+                    <div class="form-text">問い合わせフォームでのスパム対策として使用されます。</div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">設定を更新</button>
+                <a href="{{ url_for('index') }}" class="btn btn-secondary">戻る</a>
+            </form>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <h2 class="h5">その他の管理機能</h2>
+        <div class="list-group">
+            <a href="{{ url_for('edit_siteinfo') }}" class="list-group-item list-group-item-action">
+                サイト概要の編集
+            </a>
+            <a href="{{ url_for('venue_manage_view') }}" class="list-group-item list-group-item-action">
+                会場の管理
+            </a>
+            <a href="{{ url_for('calendar_manage_view') }}" class="list-group-item list-group-item-action">
+                カレンダーの管理
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

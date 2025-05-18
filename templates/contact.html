@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}お問い合わせ - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">お問い合わせ</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form id="contactForm" method="POST" action="{{ url_for('contact') }}" class="needs-validation" novalidate>
+        {{ form.csrf_token }}
+        
+        <!-- ハニーポットフィールド -->
+        <div class="d-none">
+            <input type="text" name="website" id="website" tabindex="-1" autocomplete="off">
+        </div>
+
+        <div class="mb-3">
+            <label for="name" class="form-label">お名前</label>
+            {{ form.name(class="form-control", id="name", placeholder="任意") }}
+        </div>
+
+        <div class="mb-3">
+            <label for="email" class="form-label">メールアドレス <span class="text-danger">*</span></label>
+            {{ form.email(class="form-control", id="email", required=true) }}
+            <div class="invalid-feedback">
+                メールアドレスを入力してください。
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="subject" class="form-label">件名 <span class="text-danger">*</span></label>
+            {{ form.subject(class="form-control", id="subject", required=true) }}
+            <div class="invalid-feedback">
+                件名を入力してください。
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="message" class="form-label">お問い合わせ内容 <span class="text-danger">*</span></label>
+            {{ form.message(class="form-control", id="message", rows="5", required=true) }}
+            <div class="invalid-feedback">
+                お問い合わせ内容を入力してください。
+            </div>
+        </div>
+
+        {% if config.RECAPTCHA_ENABLED %}
+        <div class="mb-3">
+            {{ recaptcha }}
+        </div>
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary">送信</button>
+    </form>
+</div>
+
+{% if config.RECAPTCHA_ENABLED %}
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+{% endif %}
+<script src="{{ url_for('static', filename='js/contact.js') }}"></script>
+{% endblock %}
