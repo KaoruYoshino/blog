@@ -2,19 +2,16 @@
 
 {% block title %}記事一覧 - 日本語教室ボランティアブログ{% endblock %}
 
+{# ログイン状態はsession.get('user_id')で確認します #}
 {% block content %}
 <h2>日本語教室ボランティアブログへようこそ</h2>
 {% if site_info %}
 <p>{{ site_info.description|safe }}</p>
 {% else %}
 <p>このサイトは日本語教室のボランティア活動の記録や情報共有を目的としたブログです。</p>
-{% endif %}
-
-<!-- 管理者向けのカレンダー編集ボタン -->
 {% if session.get('user_id') %}
-<div class="mb-3">
-  <button id="calendarEditBtn" class="btn btn-primary" data-url="{{ url_for('calendar_manage_view') }}">カレンダー編集</button>
-</div>
+  <button id="calendarEditBtn" onclick="location.href='{{ url_for('calendar_manage_view') }}'">カレンダー編集</button>
+{% endif %}
 {% endif %}
 
 <!-- カレンダー表示エリア -->
