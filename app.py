@@ -163,11 +163,9 @@ def calendar_manage():
         return redirect(url_for('login'))
     return render_template('calendar_manage.html')
 
-# 会場一覧取得API
+# 会場一覧取得API（パブリック）
 @app.route('/api/venues', methods=['GET'])
 def get_venues():
-    if not session.get('user_id'):
-        return jsonify({'error': 'ログインが必要です。'}), 401
     try:
         venues = Venue.query.all()
         venue_list = []
@@ -184,6 +182,13 @@ def get_venues():
     except Exception as e:
         current_app.logger.error(f"Error in get_venues: {e}")
         return jsonify({'error': 'サーバーエラーが発生しました。'}), 500
+
+# 管理者用会場一覧API
+@app.route('/api/admin/venues', methods=['GET'])
+def get_admin_venues():
+    if not session.get('user_id'):
+        return jsonify({'error': 'ログインが必要です。'}), 401
+    return get_venues()
 
 # 会場追加API
 @app.route('/api/venues', methods=['POST'])
@@ -343,9 +348,52 @@ def venue_manage_view():
                          venues=venues,
                          google_maps_api_key=app.config['GOOGLE_MAPS_API_KEY'])
 
-# 予定一覧取得API
+# 予定一覧取得API（パブリック）
 @app.route('/api/events', methods=['GET'])
 def get_events():
+    try:
+        events = Event.query.all()
+        event_list = []
+        for event in events:
+            event_list.append({
+                'id': event.id,
+                'title': event.title,
+                'start': event.start.isoformat(),
+                'end': event.end.isoformat() if event.end else None,
+                'description': event.description,
+                'recurrence_rule': event.recurrence_rule,
+                'venue_name': event.venue.name if event.venue else None
+            })
+        return jsonify(event_list)
+    except Exception as e:
+        current_app.logger.error(f"Error in get_events: {e}")
+        return jsonify({'error': 'サーバーエラーが発生しました。'}), 500
+
+# 次回の練習日取得API
+@app.route('/api/events/next', methods=['GET'])
+def get_next_event():
+    try:
+        current_time = datetime.now()
+        next_event = Event.query.filter(Event.start > current_time).order_by(Event.start).first()
+        
+        if next_event:
+            return jsonify({
+                'id': next_event.id,
+                'title': next_event.title,
+                'start': next_event.start.isoformat(),
+                'end': next_event.end.isoformat() if next_event.end else None,
+                'description': next_event.description,
+                'venue_name': next_event.venue.name if next_event.venue else None
+            })
+        else:
+            return jsonify(None)
+    except Exception as e:
+        current_app.logger.error(f"Error in get_next_event: {e}")
+        return jsonify({'error': 'サーバーエラーが発生しました。'}), 500
+
+# 管理者用予定一覧API
+@app.route('/api/admin/events', methods=['GET'])
+def get_admin_events():
     if not session.get('user_id'):
         return jsonify({'error': 'ログインが必要です。'}), 401
     try:
@@ -371,7 +419,7 @@ def get_events():
             })
         return jsonify(event_list)
     except Exception as e:
-        current_app.logger.error(f"Error in get_events: {e}")
+        current_app.logger.error(f"Error in get_admin_events: {e}")
         return jsonify({'error': 'サーバーエラーが発生しました。'}), 500
 
 # 予定追加API

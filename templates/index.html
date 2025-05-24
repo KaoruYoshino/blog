@@ -1,34 +1,199 @@
 {% extends "base.html" %}
 
-{% block title %}記事一覧 - 日本語教室ボランティアブログ{% endblock %}
+{% block title %}日本語教室ボランティアブログ{% endblock %}
 
-{# ログイン状態はsession.get('user_id')で確認します #}
 {% block content %}
-<h2>日本語教室ボランティアブログへようこそ</h2>
-{% if site_info %}
-<p>{{ site_info.description|safe }}</p>
-{% else %}
-<p>このサイトは日本語教室のボランティア活動の記録や情報共有を目的としたブログです。</p>
-{% if session.get('user_id') %}
-  <button id="calendarEditBtn" onclick="location.href='{{ url_for('calendar_manage_view') }}'">カレンダー編集</button>
-{% endif %}
-{% endif %}
+<!-- メインコンテナ -->
+<div class="container-fluid mt-4">
+    <!-- ヘッダー部分 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <h1 class="display-5">日本語教室ボランティアブログ</h1>
+                <div class="d-flex gap-2 mt-2 mt-md-0">
+                    <a href="{{ url_for('contact') }}" class="btn btn-primary">お問い合わせ</a>
+                    <a href="#" class="btn btn-secondary">記事一覧</a>
+                    {% if session.get('user_id') %}
+                        <div class="dropdown">
+                            <button class="btn btn-info dropdown-toggle" type="button" id="adminMenuBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                                管理メニュー
+                            </button>
+                            <ul class="dropdown-menu" aria-labelledby="adminMenuBtn">
+                                <li><a class="dropdown-item" href="{{ url_for('post_create') }}">記事投稿</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('admin_settings') }}">管理者設定</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('edit_siteinfo') }}">サイト概要編集</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('venue_manage_view') }}">会場管理</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('calendar_manage_view') }}">カレンダー管理</a></li>
+                            </ul>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            <!-- 次の練習日・会場 -->
+            <div class="alert alert-info mt-3" id="nextPractice">
+                <h4 class="alert-heading">次回の練習日程</h4>
+                <div id="nextPracticeInfo">
+                    <!-- JavaScriptで動的に挿入 -->
+                    <p class="mb-0">読み込み中...</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<!-- カレンダー表示エリア -->
-<div id="calendar"></div>
+    <!-- メインコンテンツ -->
+    <div class="row">
+        <!-- 左カラム -->
+        <div class="col-12 col-lg-5 mb-4">
+            <!-- カレンダー -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3 class="card-title h5 mb-0">カレンダー</h3>
+                </div>
+                <div class="card-body">
+                    <div id="calendar"></div>
+                </div>
+            </div>
 
-<h2>記事一覧</h2>
-<ul>
-    {% for post in posts %}
-    <li>
-        <a href="{{ url_for('post_detail', post_id=post.id) }}">{{ post.title }}</a>
-        <small>{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
-    </li>
-    {% else %}
-    <li>記事がありません。</li>
-    {% endfor %}
-</ul>
+            <!-- 最近の記事一覧 -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title h5 mb-0">最近の記事</h3>
+                    <a href="#" class="btn btn-sm btn-outline-primary">一覧ページへ</a>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        {% for post in posts %}
+                        <li class="list-group-item">
+                            <a href="{{ url_for('post_detail', post_id=post.id) }}" class="text-decoration-none">
+                                {{ post.title }}
+                            </a>
+                            <small class="text-muted d-block">{{ post.created_at.strftime('%Y-%m-%d') }}</small>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item">記事がありません。</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
 
-<script src="/static/js/index_calendar.js"></script>
+        <!-- 右カラム -->
+        <div class="col-12 col-lg-7 mb-4">
+            <!-- サイト概要 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3 class="card-title h5 mb-0">サイト概要</h3>
+                </div>
+                <div class="card-body">
+                    {% if site_info %}
+                        {{ site_info.description|safe }}
+                    {% else %}
+                        <p>このサイトは日本語教室のボランティア活動の記録や情報共有を目的としたブログです。</p>
+                    {% endif %}
+                </div>
+            </div>
 
+            <!-- 会場MAP -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3 class="card-title h5 mb-0">会場MAP</h3>
+                </div>
+                <div class="card-body">
+                    <div id="map" style="height: 400px;"></div>
+                </div>
+            </div>
+
+            <!-- お問い合わせボタン -->
+            <div class="d-grid">
+                <a href="{{ url_for('contact') }}" class="btn btn-primary btn-lg">
+                    お問い合わせはこちら
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-right" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8z"/>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Google Maps APIの読み込み -->
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMap" async defer></script>
+
+<!-- カレンダーとマップの初期化スクリプト -->
+<script>
+// マップの初期化
+function initMap() {
+    // 地図の初期設定
+    const map = new google.maps.Map(document.getElementById('map'), {
+        zoom: 15,
+        center: { lat: 35.6895, lng: 139.6917 }, // デフォルト: 東京
+    });
+
+    // 会場データの取得と表示
+    fetch('/api/venues')
+        .then(response => response.json())
+        .then(venues => {
+            venues.forEach(venue => {
+                if (venue.lat && venue.lng) {
+                    const marker = new google.maps.Marker({
+                        position: { lat: venue.lat, lng: venue.lng },
+                        map: map,
+                        title: venue.name
+                    });
+
+                    const infoWindow = new google.maps.InfoWindow({
+                        content: `<div><strong>${venue.name}</strong><br>${venue.address || ''}</div>`
+                    });
+
+                    marker.addListener('click', () => {
+                        infoWindow.open(map, marker);
+                    });
+                }
+            });
+
+            // 最初の会場にフォーカス
+            if (venues.length > 0 && venues[0].lat && venues[0].lng) {
+                map.setCenter({ lat: venues[0].lat, lng: venues[0].lng });
+            }
+        });
+}
+
+// カレンダーの初期化
+document.addEventListener('DOMContentLoaded', function() {
+    const calendarEl = document.getElementById('calendar');
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'ja',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,listMonth'
+        },
+        events: '/api/events',
+        displayEventTime: true,
+        eventClick: function(info) {
+            // イベントクリック時の処理
+            alert(info.event.title);
+        }
+    });
+    calendar.render();
+
+    // 次回の練習日を表示
+    fetch('/api/events/next')
+        .then(response => response.json())
+        .then(event => {
+            if (event) {
+                document.getElementById('nextPracticeInfo').innerHTML = `
+                    <p class="mb-0">
+                        <strong>日時：</strong>${new Date(event.start).toLocaleString('ja-JP')}<br>
+                        <strong>会場：</strong>${event.venue_name || '未定'}<br>
+                        <strong>詳細：</strong>${event.description || '詳細未定'}
+                    </p>`;
+            } else {
+                document.getElementById('nextPracticeInfo').innerHTML = `
+                    <p class="mb-0">次回の練習日は未定です。</p>`;
+            }
+        });
+});
+</script>
 {% endblock %}
