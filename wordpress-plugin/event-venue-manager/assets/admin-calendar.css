@@ -1,0 +1,124 @@
+#evm-admin-calendar {
+  max-width: 900px;
+}
+
+.evm-admin-cal {
+  border: 1px solid #ddd;
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+}
+
+.evm-admin-cal th,
+.evm-admin-cal td {
+  border: 1px solid #eee;
+  vertical-align: top;
+  padding: 6px;
+  height: 88px;
+}
+
+.evm-admin-head {
+  text-align: center;
+  margin: 12px 0;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+.evm-admin-head button {
+  padding: 4px 8px;
+}
+
+.evm-daynum {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.evm-cell {
+  position: relative;
+  cursor: pointer;
+  background: #fff;
+}
+
+.evm-cell:hover {
+  background: #f8fbff;
+}
+
+.evm-event {
+  font-size: .9em;
+  margin: 2px 0;
+  padding: 2px 4px;
+  background: #f2f7ff;
+  border-left: 3px solid #3b82f6;
+  border-radius: 2px;
+}
+
+.evm-empty {
+  background: #fafafa;
+  cursor: default;
+}
+
+/* modal */
+.evm-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .4);
+  display: none;
+  z-index: 10000;
+}
+
+.evm-modal {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  width: 420px;
+  max-width: 90vw;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .3);
+  display: none;
+  z-index: 10001;
+}
+
+.evm-modal header {
+  padding: 10px 14px;
+  font-weight: 700;
+  border-bottom: 1px solid #eee;
+}
+
+.evm-modal .inner {
+  padding: 12px 14px;
+}
+
+.evm-modal label {
+  display: block;
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+
+.evm-modal input[type="text"],
+.evm-modal input[type="time"],
+.evm-modal select {
+  width: 100%;
+}
+
+.evm-modal footer {
+  padding: 10px 14px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  border-top: 1px solid #eee;
+}
+
+/* 追加 */
+body.evm-modal-open {
+  overflow: hidden;
+}
+
+/* モーダルにフォーカスリング */
+.evm-modal :focus {
+  outline: 2px solid #4c9aff;
+  outline-offset: 2px;
+}
