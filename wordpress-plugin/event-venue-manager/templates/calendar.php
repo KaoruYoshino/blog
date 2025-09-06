@@ -28,10 +28,13 @@ foreach ($events as $e) {
 ?>
 <div class="evm-calendar">
   <div class="evm-cal-header">
+    <button type="button" class="evm-cal-prev" aria-label="Prev month">‹</button>
     <span class="evm-cal-title">
       <?php echo esc_html( sprintf( _x('%1$d年 %2$d月', 'year month', 'event-venue-manager'), $y, $m ) ); ?>
     </span>
+    <button type="button" class="evm-cal-next" aria-label="Next month">›</button>
   </div>
+  <div class="evm-cal-wrapper" data-year="<?php echo esc_attr($y); ?>" data-month="<?php echo esc_attr($m); ?>">
 
   <table class="evm-cal-table">
     <thead>
@@ -72,19 +75,49 @@ foreach ($events as $e) {
 
           if (!empty($byDate[$dateStr])) {
               foreach ($byDate[$dateStr] as $ev) {
-                  $name  = isset($ev['name'])  ? (string)$ev['name']  : '';
-                  $venue = isset($ev['venue']) ? (string)$ev['venue'] : '';
-                  $url   = isset($ev['url'])   ? (string)$ev['url']   : '';
+                $name  = isset($ev['name'])  ? (string)$ev['name']  : '';
+                $venue = isset($ev['venue']) ? (string)$ev['venue'] : '';
+                $url   = isset($ev['url'])   ? (string)$ev['url']   : '';
+                $lat    = isset($ev['lat'])   ? (float)$ev['lat']    : 0.0;
+                $lng    = isset($ev['lng'])   ? (float)$ev['lng']    : 0.0;
+                $zoom   = isset($ev['zoom'])  ? (int)$ev['zoom']     : 15;
 
-                  // ▼ マウスオーバーで会場名を表示（CSSツールチップ）
-                  $dataVenue = $venue !== '' ? ' data-venue="' . esc_attr($venue) . '"' : '';
-                  echo '<div class="evm-cal-event"' . $dataVenue . '>';
-                  if ($url) {
-                      echo '<a href="' . esc_url($url) . '">' . esc_html($name) . '</a>';
-                  } else {
-                    echo '<span>' . esc_html($name) . '</span>';
-                  }
-                  echo '</div>';
+                // If venue has coordinates, mark the whole event div as clickable
+                if ($venue !== '' && $lat && $lng) {
+                  echo '<div class="evm-cal-event js-open-map"'
+                    . ' data-lat="'  . esc_attr($lat)  . '"'
+                    . ' data-lng="'  . esc_attr($lng)  . '"'
+                    . ' data-zoom="' . esc_attr($zoom) . '"'
+                    . ' data-name="' . esc_attr($venue) . '"'
+                    . ($venue !== '' ? ' data-venue="' . esc_attr($venue) . '"' : '')
+                    . '>';
+                } else {
+                  echo '<div class="evm-cal-event"' . ($venue !== '' ? ' data-venue="' . esc_attr($venue) . '"' : '') . '>';
+                }
+
+                // イベント名（リンクがあればリンク）
+                if ($url) {
+                  echo '<a href="' . esc_url($url) . '">' . esc_html($name) . '</a>';
+                } else {
+                  echo '<span>' . esc_html($name) . '</span>';
+                }
+
+                // 会場情報
+                if ($venue !== '' && $lat && $lng) {
+                  echo ' <button type="button" class="evm-venue-link js-open-map"'
+                    . ' data-lat="'  . esc_attr($lat)  . '"'
+                    . ' data-lng="'  . esc_attr($lng)  . '"'
+                    . ' data-zoom="' . esc_attr($zoom) . '"'
+                    . ' data-name="' . esc_attr($venue) . '"'
+                    . '>'
+                    . '@ ' . esc_html($venue)
+                    . '</button>';
+                } elseif ($venue !== '') {
+                  // 座標が未登録なら文字だけ（クリック不可）
+                  echo ' <span class="evm-venue-text">@ ' . esc_html($venue) . '</span>';
+                }
+
+                echo '</div>';
               }
           }
 
@@ -104,6 +137,7 @@ foreach ($events as $e) {
       ?>
     </tbody>
   </table>
+  </div>
 </div>
 
 <style>
@@ -138,4 +172,30 @@ foreach ($events as $e) {
   border-bottom-color: #333;
   z-index: 3;
 }
+/* イベント全体をクリック可能にした場合はカーソルをポインタに */
+.evm-cal-event.js-open-map { cursor: pointer; }
+
+/* イベントを祝日風のピルに似せつつ青背景にしてクリック可能にする */
+.evm-cal-event.js-open-map {
+  background: #e8f1ff;
+  color: #063a87;
+  padding: 4px 6px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+/* 会場リンクはボタン風にしない（見た目はテキスト） */
+.evm-cal-event .evm-venue-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: 6px;
+  color: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* 内部の a タグ（イベント詳細リンク）がある場合は色を維持 */
+.evm-cal-event.js-open-map a { color: inherit; text-decoration: underline; }
 </style>

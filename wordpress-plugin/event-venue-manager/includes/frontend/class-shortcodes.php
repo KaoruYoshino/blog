@@ -20,12 +20,25 @@ class Shortcodes {
      */
     public static function render_calendar( $atts = [] ) {
         // 必要ならここでCSS/JSを読み込み（事前にwp_register_style/scriptしておく想定）
-        if ( wp_style_is('evm-calendar', 'registered') ) {
-            wp_enqueue_style('evm-calendar');
-        }
-        if ( wp_script_is('evm-calendar', 'registered') ) {
-            wp_enqueue_script('evm-calendar');
-        }
+            // Enqueue single frontend calendar asset (legacy handle 'evm-calendar' maps to frontend files).
+            if ( wp_style_is('evm-calendar', 'registered') ) {
+                wp_enqueue_style('evm-calendar');
+            }
+            if ( wp_script_is('evm-calendar', 'registered') ) {
+                wp_enqueue_script('evm-calendar');
+            }
+            // マップ用スクリプトを読み込む
+            if ( wp_script_is('evm-map-modal', 'registered') ) {
+                wp_enqueue_script('evm-map-modal');
+            }
+        // フロント用カレンダー JS を利用可能なら読み込む（編集機能は入らない軽量版）
+            // ローカライズ: AJAX URL と nonce、祝日表示モード
+            $data = [
+                'ajax' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('evm_admin'),
+                'holidayLabel' => apply_filters('evm_holiday_label_mode', 'en'),
+            ];
+            wp_localize_script('evm-calendar', 'EVM_ADMIN', $data);
 
         $events = self::get_events_normalized();
 
@@ -79,50 +92,58 @@ class Shortcodes {
         // --- CPT 'event' から取得（フォールバック）---
         // _evm_start(YYYY-MM-DD or Y-m-d H:i:s) を昇順、_evm_venue_name を会場名として想定
         $q = new \WP_Query([
-    'post_type'      => 'event',
-    'posts_per_page' => -1,
-    'meta_key'       => '_evm_start',
-    'orderby'        => 'meta_value',
-    'order'          => 'ASC',
-    'post_status'    => ['publish'],
-    'no_found_rows'  => true,
-]);
+            'post_type'      => 'event',
+            'posts_per_page' => -1,
+            'meta_key'       => '_evm_start',
+            'orderby'        => 'meta_value',
+            'order'          => 'ASC',
+            'post_status'    => ['publish'],
+            'no_found_rows'  => true,
+        ]);
 
-$events = [];
-if ( $q->have_posts() ) {
-    while ( $q->have_posts() ) {
-        $q->the_post();
-        $post_id = get_the_ID();
+        $events = [];
+        if ( $q->have_posts() ) {
+            while ( $q->have_posts() ) {
+                $q->the_post();
+                $post_id = get_the_ID();
 
-        $start_raw   = get_post_meta($post_id, '_evm_start', true);
+                $start_raw   = get_post_meta($post_id, '_evm_start', true);
 
-        // 互換: _evm_venue_id / evm_venue_id のどちらも拾う
-        $venue_id    = (int) get_post_meta($post_id, '_evm_venue_id', true);
-        if ( ! $venue_id ) {
-            $venue_id = (int) get_post_meta($post_id, 'evm_venue_id', true);
-        }
+                // 互換: _evm_venue_id / evm_venue_id のどちらも拾う
+                $venue_id    = (int) get_post_meta($post_id, '_evm_venue_id', true);
+                if ( ! $venue_id ) {
+                    $venue_id = (int) get_post_meta($post_id, 'evm_venue_id', true);
+                }
 
-        // まず _evm_venue_name を試す
-        $venue_name  = get_post_meta($post_id, '_evm_venue_name', true);
+                // ▼ まず _evm_venue_name を試す、無ければID→タイトル
+                $venue_name  = get_post_meta($post_id, '_evm_venue_name', true);
+                if ($venue_name === '' && $venue_id) {
+                    $title = get_the_title($venue_id);
+                    if (is_string($title)) $venue_name = $title;
+                }
 
-        // 空なら ID→タイトルで補完（公開されていなくても get_the_title() は取れます）
-        if ( $venue_name === '' && $venue_id ) {
-            $title = get_the_title($venue_id);
-            if ( is_string($title) ) {
-                $venue_name = $title;
+                // 会場の緯度経度・ズームを取得（ACFで保存済み想定）
+                $lat  = $venue_id ? (float) get_post_meta($venue_id, '_evm_lat',  true) : 0.0;
+                $lng  = $venue_id ? (float) get_post_meta($venue_id, '_evm_lng',  true) : 0.0;
+                $zoom = $venue_id ? (int)   get_post_meta($venue_id, '_evm_zoom', true) : 0;
+                if (! $zoom) $zoom = 15; // デフォルト
+
+                $events[] = [
+                    'date'     => self::normalize_date_string($start_raw),
+                    'name'     => get_the_title(),
+                    'venue'    => is_string($venue_name) ? $venue_name : '',
+                    'url'      => get_permalink($post_id),
+
+                    // 追加フィールド（テンプレートで使う）
+                    'venue_id' => $venue_id,
+                    'lat'      => $lat,
+                    'lng'      => $lng,
+                    'zoom'     => $zoom,
+                ];
             }
+            wp_reset_postdata();
         }
-
-        $events[] = [
-            'date'  => self::normalize_date_string($start_raw),
-            'name'  => get_the_title(),
-            'venue' => is_string($venue_name) ? $venue_name : '',
-            'url'   => get_permalink($post_id),
-        ];
-    }
-    wp_reset_postdata();
-}
-return $events;
+        return $events;
     }
 
     /**

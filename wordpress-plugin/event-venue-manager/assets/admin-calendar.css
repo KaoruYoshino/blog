@@ -1,65 +1,193 @@
-#evm-admin-calendar {
-  max-width: 900px;
+/* ---- Theme tokens ---- */
+:root {
+  --bg: #f7f8fb;
+  --card: #ffffff;
+  --grid: #eef2f7;
+  --text: #0f172a;
+  --muted: #64748b;
+
+  --brand: #2563eb;
+  /* アクセント（青系） */
+  --brand-soft: #eff6ff;
+
+  --sun: #e53935;
+  /* 日曜 */
+  --sat: #1e88e5;
+  /* 土曜 */
+
+  --holiday: #ef4444;
+  /* 祝日 */
+  --holiday-soft: #fee2e2;
+
+  --out-bg: #fafafa;
+  /* 前後月セル */
+  --out-text: #94a3b8;
+  --head-bg: #eef2ff;
+    /* ヘッダー帯の背景（ブランドに寄せた淡色） */
+    --head-line: #dbe6ff;
+    /* ヘッダー下の太め境界線 */
 }
 
+/* ラッパー */
+#evm-admin-calendar {
+  max-width: 980px;
+}
+
+/* カード化 */
 .evm-admin-cal {
-  border: 1px solid #ddd;
-  border-collapse: collapse;
+  border: 0;
   width: 100%;
   table-layout: fixed;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--card);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .06);
 }
 
+/* グリッドは極薄に */
 .evm-admin-cal th,
 .evm-admin-cal td {
-  border: 1px solid #eee;
+  border-right: 1px solid var(--grid);
+  border-bottom: 1px solid var(--grid);
   vertical-align: top;
-  padding: 6px;
+  padding: 8px;
   height: 88px;
+  /* 必要に応じて 76〜92px で調整 */
 }
 
-.evm-admin-head {
-  text-align: center;
-  margin: 12px 0;
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  align-items: center;
+/* ヘッダ（曜日） */
+.evm-admin-cal thead th {
+  background: var(--head-bg);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: .03em;
+  padding: 12px 8px;
+  height: 40px;
+  border-bottom: 2px solid var(--head-line);
 }
 
-.evm-admin-head button {
-  padding: 4px 8px;
+/* 週末色（ヘッダ & 当月の数字） */
+.evm-admin-cal thead th:first-child {
+  color: var(--sun);
+}
+
+.evm-admin-cal thead th:last-child {
+  color: var(--sat);
+}
+
+.evm-admin-cal tbody tr>td:first-child:not(.is-out) .evm-daynum {
+  color: var(--sun);
+}
+
+.evm-admin-cal tbody tr>td:last-child:not(.is-out) .evm-daynum {
+  color: var(--sat);
+}
+
+/* セル */
+.evm-cell {
+  background: #fff;
+  cursor: pointer;
+}
+
+.evm-cell:hover {
+  background: #f9fbff;
 }
 
 .evm-daynum {
   font-weight: 700;
   margin-bottom: 4px;
+  color: var(--text);
 }
 
-.evm-cell {
-  position: relative;
-  cursor: pointer;
+/* 前後月セルは淡く */
+.evm-cell.is-out {
+  background: var(--out-bg);
+  color: var(--out-text);
+}
+
+.evm-cell.is-out .evm-daynum {
+  color: var(--out-text);
+}
+
+/* イベントピル（ブランド色の薄塗り + 左ライン） */
+.evm-event {
+  font-size: 12.5px;
+  margin: 3px 0;
+  padding: 4px 6px;
+  background: var(--brand-soft);
+  border-left: 3px solid var(--brand);
+  border-radius: 6px;
+  line-height: 1.35;
+}
+
+.evm-event.is-out {
+  background: #eef2ff;
+  border-left-color: #94a3ff;
+  color: #334155;
+}
+
+/* 祝日ピル（赤系） */
+.evm-holiday {
+  font-size: 12.5px;
+  margin: 3px 0;
+  padding: 4px 6px;
+  background: var(--holiday-soft);
+  border-left: 3px solid var(--holiday);
+  border-radius: 6px;
+  font-weight: 600;
+  color: #b91c1c;
+  line-height: 1.3;
+}
+
+.evm-holiday .en {
+  color: #8b9bb0;
+  font-weight: 500;
+}
+
+.evm-holiday rt {
+  font-size: 10px;
+  color: #6b7280;
+}
+
+/* 前後月の祝日はさらに淡く */
+.evm-cell.is-out .evm-holiday {
+  background: #fdeceb;
+  border-left-color: #ef9a9a;
+  color: #c62828;
+}
+
+/* ヘッダのナビ */
+.evm-admin-head {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  margin: 12px 0;
+}
+
+.evm-admin-head button {
+  padding: 6px 10px;
+  border: 1px solid var(--grid);
+  border-radius: 8px;
   background: #fff;
 }
 
-.evm-cell:hover {
-  background: #f8fbff;
+.evm-admin-head button:hover {
+  background: #f8fafc;
 }
 
-.evm-event {
-  font-size: .9em;
-  margin: 2px 0;
-  padding: 2px 4px;
-  background: #f2f7ff;
-  border-left: 3px solid #3b82f6;
-  border-radius: 2px;
+/* モーダル時の補助 */
+body.evm-modal-open {
+  overflow: hidden;
 }
 
-.evm-empty {
-  background: #fafafa;
-  cursor: default;
+.evm-modal :focus {
+  outline: 2px solid #4c9aff;
+  outline-offset: 2px;
 }
 
-/* modal */
+/* モーダル本体＆背景（必須） */
 .evm-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -110,15 +238,4 @@
   gap: 8px;
   justify-content: flex-end;
   border-top: 1px solid #eee;
-}
-
-/* 追加 */
-body.evm-modal-open {
-  overflow: hidden;
-}
-
-/* モーダルにフォーカスリング */
-.evm-modal :focus {
-  outline: 2px solid #4c9aff;
-  outline-offset: 2px;
 }

@@ -1,0 +1,225 @@
+# Google Maps（料金・クォータ・アラート）運用メモ
+
+このドキュメントは、ブログサイト（WordPress／ACF／Google Maps Platform）の**課金対策・監視・アラート**設定の要点を1枚にまとめた運用メモ（Runbook）です。
+
+---
+
+## 1. 使っている API
+
+* **Maps JavaScript API**（地図表示）
+* **Places API**（Autocomplete／Place Details）
+* **Geocoding API**（基本は未使用または低頻度）
+
+> 参考：サービス名（API ID）
+>
+> * Maps JS: `maps-backend.googleapis.com`
+> * Places: `places.googleapis.com`
+> * Geocoding: `geocoding.googleapis.com`
+
+---
+
+## 2. クォータ（ハードキャップ）
+
+* **Maps JavaScript API**: *Map loads per day* → **300 / day**
+* **Places API**:
+
+  * *Autocomplete (New)* → **100 / day**
+  * *Place Details (New) Essentials* → **100 / day**
+* **Geocoding API**: **Disable**（未使用） or **10 / day**
+
+**方針**
+
+* 使わないメソッドは **1 / day** など極小にして誤課金を防止。
+* 日次上限に達すると**当日その API は応答しなくなる**（実質ハードキャップ）。
+
+---
+
+## 3. 料金アラート（Billing → Budgets & alerts）
+
+* 予算（例）: **¥1,000 / 月**
+* しきい値: **50% / 80% / 100%**（**Forecast** にも適用）
+* 通知先: 課金アカウントの管理者メール or 追加メンバー
+
+---
+
+## 4. Monitoring アラート（PromQL）
+
+**共通設定**
+
+* 評価間隔: **5 minutes**
+* 再テストウィンドウ: **0–5 minutes**（ノイズが気になる場合は 5 分）
+* 通知: **Email**（確認済みチャネル）
+* ポリシーは用途ごとに**4本**（MapsJS／Autocomplete／Place Details／Geocoding）
+
+### 4.1 日次 80% 超で通知（各ポリシー）
+
+**Maps JavaScript – Map loads per day**
+
+```promql
+(
+  max by (project_id, service, quota_metric, location) (
+    {"serviceruntime.googleapis.com/quota/allocation/usage",
+     monitored_resource="consumer_quota",
+     service="maps-backend.googleapis.com",
+     quota_metric=~"map.*load.*per.*day"}
+  )
+  /
+  min by (project_id, service, quota_metric, location) (
+    {"serviceruntime.googleapis.com/quota/limit",
+     monitored_resource="consumer_quota",
+     service="maps-backend.googleapis.com",
+     limit_name=~".*PerDay.*"}
+  )
+) > 0.8
+```
+
+**Places – Autocomplete**
+
+```promql
+(
+  max by (project_id, service, quota_metric, location) (
+    {"serviceruntime.googleapis.com/quota/allocation/usage",
+     monitored_resource="consumer_quota",
+     service="places.googleapis.com",
+     quota_metric=~".*autocomplete.*"}
+  )
+  /
+  min by (project_id, service, quota_metric, location) (
+    {"serviceruntime.googleapis.com/quota/limit",
+     monitored_resource="consumer_quota",
+     service="places.googleapis.com",
+     limit_name=~".*PerDay.*"}
+  )
+) > 0.8
+```
+
+**Places – Place Details**
+
+```promql
+(
+  max by (project_id, service, quota_metric, location) (
+    {"serviceruntime.googleapis.com/quota/allocation/usage",
+     monitored_resource="consumer_quota",
+     service="places.googleapis.com",
+     quota_metric=~".*place.*details.*"}
+  )
+  /
+  min by (project_id, service, quota_metric, location) (
+    {"serviceruntime.googleapis.com/quota/limit",
+     monitored_resource="consumer_quota",
+     service="places.googleapis.com",
+     limit_name=~".*PerDay.*"}
+  )
+) > 0.8
+```
+
+**Geocoding（日次）**
+
+```promql
+(
+  max by (project_id, service, quota_metric, location) (
+    {"serviceruntime.googleapis.com/quota/allocation/usage",
+     monitored_resource="consumer_quota",
+     service="geocoding.googleapis.com"}
+  )
+  /
+  min by (project_id, service, quota_metric, location) (
+    {"serviceruntime.googleapis.com/quota/limit",
+     monitored_resource="consumer_quota",
+     service="geocoding.googleapis.com",
+     limit_name=~".*PerDay.*"}
+  )
+) > 0.8
+```
+
+**補足**
+
+* 日替わりで割当がリセット → その日また 0.8 を超えると**新しいインシデントが開きメール通知**。
+* “当日最大”で判定したい場合は `max_over_time(...[24h:]) / min_over_time(...[24h:])` 版に差し替え。
+
+### 4.2 保険（上限に当たった瞬間の通知）
+
+```promql
+sum by (service, quota_metric)(
+  {"serviceruntime.googleapis.com/quota/exceeded",
+   monitored_resource="consumer_quota",
+   service=~"(maps-backend.googleapis.com|places.googleapis.com|geocoding.googleapis.com)"}
+) > 0
+```
+
+### 4.3 再通知（任意／長時間鳴りっぱなし対策）
+
+* デフォルトは **OPEN 時 1 回（＋CLOSED 時 1 回は任意）**。
+* “鳴り続ける間のリマインド” は **alertStrategy.renotifyInterval** を設定（API/CLI/Terraform）。例：**1 時間ごとに再通知**
+
+```json
+"alertStrategy": {
+  "notificationChannelStrategy": [{
+    "notificationChannelNames": [
+      "projects/PROJECT_ID/notificationChannels/CHANNEL_ID"
+    ],
+    "renotifyInterval": "3600s"
+  }],
+  "notificationPrompts": ["OPENED", "CLOSED"]
+}
+```
+
+---
+
+## 5. API キーの“許可 API”ホワイトリスト
+
+**APIs & Services → Credentials → API key**
+
+* **Application restrictions**: *HTTP referrers* → 本番ドメイン（`https://example.com/*` など）
+* **API restrictions**: *Restrict key* → **Maps JavaScript API / Places API**（必要なら Geocoding）だけ許可
+* 本番用と管理画面用で**キーを分ける**と安全（レートや権限を独立運用）
+
+> REST での更新例（抜粋）
+
+```bash
+curl -X PATCH \
+  "https://apikeys.googleapis.com/v2/projects/PROJECT_NUMBER/locations/global/keys/KEY_ID?updateMask=restrictions" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "restrictions": {
+      "browserKeyRestrictions": {"allowedReferrers": ["https://example.com/*"]},
+      "apiTargets": [
+        {"service": "maps-backend.googleapis.com"},
+        {"service": "places.googleapis.com"}
+      ]
+    }
+  }'
+```
+
+---
+
+## 6. テストとトラブルシュート
+
+* 通知チャネルは **テスト用ポリシー**で確認（式を一時的に `(vector(1)) > 0` にして 1 分間隔）
+* プルダウンに通知先が出ない → **Notification channels** でメールが **Verified** か確認／更新（↻）
+* クォータフィルタが候補に出ない → 期間を 7 日に／一度 API を触ってデータ発生
+
+---
+
+## 7. セキュリティ運用の基本
+
+* API キーは **HTTP リファラ制限**（本番ドメインのみ）
+* 使わない API は **Disable**、またはクォータを極小に
+* 公開用キーと管理用キーの**分離**
+
+---
+
+## 付録：よく使うサービス名（再掲）
+
+* `maps-backend.googleapis.com`（Maps JavaScript）
+* `places.googleapis.com`（Places）
+* `geocoding.googleapis.com`（Geocoding）
+
+---
+
+**メンテ履歴**
+
+* 初版: 2025-09-06（アラート4本／メール通知確認済み）
+
+> 変更があればこの Runbook を更新し、Git 等で履歴管理してください。

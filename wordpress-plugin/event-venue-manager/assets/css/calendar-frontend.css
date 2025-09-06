@@ -1,0 +1,20 @@
+/* Frontend calendar styles (extracted from admin-calendar.css) */
+.evm-cal-wrapper { max-width: 980px; }
+.evm-cal-table { width:100%; table-layout:fixed; border-collapse:collapse; border-radius:8px; overflow:hidden; }
+.evm-cal-table th, .evm-cal-table td { border:1px solid #eef2f7; vertical-align:top; padding:8px; height:88px; }
+.evm-cal-table thead th { background:#eef6ff; color:#0f172a; font-weight:700; font-size:13px; padding:12px 8px; height:40px; border-bottom:2px solid #dbe6ff; }
+.evm-cal-table thead th:first-child { color:#e53935; }
+.evm-cal-table thead th:last-child { color:#1e88e5; }
+.evm-cal-date { font-weight:700; margin-bottom:4px; }
+.evm-cal-event { font-size:12.5px; margin:3px 0; padding:4px 6px; background:#eff6ff; border-left:3px solid #2563eb; border-radius:6px; line-height:1.35; }
+.evm-cal-event.is-out { background:#eef2ff; border-left-color:#94a3ff; }
+.evm-holiday { font-size:12.5px; margin:3px 0; padding:4px 6px; background:#fee2e2; border-left:3px solid #ef4444; border-radius:6px; font-weight:600; color:#b91c1c; }
+.evm-holiday .en { color:#8b9bb0; font-weight:500; }
+.evm-holiday rt { font-size:10px; color:#6b7280; }
+.evm-cal-empty { background:#fafafa; }
+.evm-cal-header { display:flex; justify-content:center; margin:.5rem 0; gap:8px; align-items:center; }
+.evm-cal-prev, .evm-cal-next { padding:6px 10px; border:1px solid #eef2f7; border-radius:8px; background:#fff; }
+.evm-cal-prev:hover, .evm-cal-next:hover { background:#f8fafc; }
+/* tooltip */
+.evm-cal-event[data-venue]:hover::after { content: attr(data-venue); position:absolute; left:0; top:100%; margin-top:4px; background:#333; color:#fff; padding:4px 6px; border-radius:4px; font-size:.8em; white-space:nowrap; z-index:3; pointer-events:none; box-shadow:0 2px 6px rgba(0,0,0,.2); }
+.evm-cal-event[data-venue]:hover::before { content: ""; position:absolute; left:10px; top:calc(100% - 2px); border:6px solid transparent; border-bottom-color:#333; z-index:3; }
