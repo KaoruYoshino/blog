@@ -54,7 +54,10 @@ class Plugin {
   public static function register_assets() {
   // Legacy handle 'evm-calendar' pointed to non-existing files; map it to frontend assets to avoid 404.
   wp_register_style('evm-calendar', EVM_URL . 'assets/css/calendar-frontend.css', [], EVM_VER);
-  wp_register_script('evm-calendar', EVM_URL . 'assets/js/calendar-frontend.js', ['jquery'], EVM_VER, true);
+  $utils_ver = file_exists(EVM_PATH . 'assets/js/evm-utils.js') ? filemtime(EVM_PATH . 'assets/js/evm-utils.js') : EVM_VER;
+  wp_register_script('evm-utils', EVM_URL . 'assets/js/evm-utils.js', [], $utils_ver, true);
+  $front_ver = file_exists(EVM_PATH . 'assets/js/calendar-frontend.js') ? filemtime(EVM_PATH . 'assets/js/calendar-frontend.js') : EVM_VER;
+  wp_register_script('evm-calendar', EVM_URL . 'assets/js/calendar-frontend.js', ['evm-utils','jquery'], $front_ver, true);
   // NOTE: 'evm-calendar' is used as the single canonical handle for frontend calendar assets.
     // Register map modal script for frontend. Do not automatically enqueue — templates/shortcodes will enqueue when needed.
     wp_register_script('evm-map-modal', EVM_URL . 'assets/js/map-modal.js', [], EVM_VER, true);
@@ -64,10 +67,11 @@ class Plugin {
       wp_add_inline_script('evm-map-modal', 'window.GOOGLE_MAPS_API_KEY = ' . wp_json_encode($key) . ';', 'before');
     }
     // 管理画面: 会場編集用の軽いスクリプト（ACF の venue_map 動作を制御）
-    wp_register_script('evm-admin-venue', EVM_URL . 'assets/admin-calendar.js', ['wp-api-fetch'], EVM_VER, true);
-    if ($key) {
-      wp_add_inline_script('evm-admin-venue', 'window.GOOGLE_MAPS_API_KEY = ' . wp_json_encode($key) . ';', 'before');
-    }
+    $admin_cal_ver = file_exists(EVM_PATH . 'assets/admin-calendar.js') ? filemtime(EVM_PATH . 'assets/admin-calendar.js') : EVM_VER;
+    wp_register_script('evm-admin-venue', EVM_URL . 'assets/admin-calendar.js', ['evm-utils','wp-api-fetch'], $admin_cal_ver, true);
+      if ($key) {
+        wp_add_inline_script('evm-admin-venue', 'window.GOOGLE_MAPS_API_KEY = ' . wp_json_encode($key) . ';', 'before');
+      }
   }
 
   // 管理画面でのスクリプト読み込み（会場編集画面のみ）

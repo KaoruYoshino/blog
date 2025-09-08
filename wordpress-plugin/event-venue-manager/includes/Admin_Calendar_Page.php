@@ -16,19 +16,22 @@ final class Admin_Calendar_Page {
     }
 
     public static function add_menu(): void {
-        // Events のサブメニューに「Calendar (Beta)」
-        self::$hook_suffix = add_submenu_page(
-            'edit.php?post_type=event',
-            __('Calendar (Beta)', 'event-venue-manager'),
-            __('Calendar (Beta)', 'event-venue-manager'),
-            'edit_posts',
-            'evm-admin-calendar',
-            [__CLASS__, 'render_page']
-        );
+    // トップレベルメニューとして「カレンダー」を追加
+    self::$hook_suffix = add_menu_page(
+      __('カレンダー', 'event-venue-manager'),
+      __('カレンダー', 'event-venue-manager'),
+      'edit_posts',
+      'evm-admin-calendar',
+      [__CLASS__, 'render_page'],
+      'dashicons-calendar',
+      26
+    );
     }
 
     public static function enqueue($hook): void {
-      if ($hook !== self::$hook_suffix) return;
+      // 柔軟にフック判定: トップレベルページの hook_suffix は環境によって微妙に変わることがあるため
+      // スラグを含むかどうかで判定して資産を確実に読み込む
+      if (strpos((string)$hook, 'evm-admin-calendar') === false) return;
 
       // CSS / JS を登録・読み込み
       wp_register_style(
@@ -39,14 +42,7 @@ final class Admin_Calendar_Page {
       );
       wp_enqueue_style('evm-admin-calendar');
 
-      wp_register_script(
-        'evm-admin-calendar',
-        EVM_URL . 'assets/admin-calendar.js',
-        [],
-        filemtime(EVM_PATH . 'assets/admin-calendar.js'),
-        true
-      );
-        // 会場一覧をローカライズ（公開済みVenues）
+  // 会場一覧をローカライズ（公開済みVenues）
         $venues = get_posts([
           'post_type'      => 'venue',
           'numberposts'    => -1,
@@ -59,31 +55,33 @@ final class Admin_Calendar_Page {
             return ['id' => (int)$p->ID, 'name' => get_the_title($p)];
         }, $venues);
 
-        wp_localize_script('evm-admin-calendar', 'EVM_ADMIN', [
+  // Use centralized admin script handle registered in Plugin::register_assets()
+  // ('evm-admin-venue' -> assets/admin-calendar.js). Localize that handle here.
+  wp_localize_script('evm-admin-venue', 'EVM_ADMIN', [
             'ajax'  => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('evm_admin'),
             'i18n'  => [
-              'title'   => __('Title', 'event-venue-manager'),
-              'start'   => __('Start', 'event-venue-manager'),
-              'time'    => __('Time', 'event-venue-manager'),
-              'venue'   => __('Venue', 'event-venue-manager'),
-              'save'    => __('Save', 'event-venue-manager'),
-              'delete'  => __('Delete', 'event-venue-manager'),
-              'cancel'  => __('Cancel', 'event-venue-manager'),
-              'newOn'   => __('New event on %s', 'event-venue-manager'),
-              'edit'    => __('Edit event', 'event-venue-manager'),
-              'noVenue' => __('(No venue)', 'event-venue-manager'),
-              'saving'  => __('Saving...', 'event-venue-manager'),
+              'title'   => __('タイトル', 'event-venue-manager'),
+              'start'   => __('開始日', 'event-venue-manager'),
+              'time'    => __('時間', 'event-venue-manager'),
+              'venue'   => __('会場', 'event-venue-manager'),
+              'save'    => __('保存', 'event-venue-manager'),
+              'delete'  => __('削除', 'event-venue-manager'),
+              'cancel'  => __('キャンセル', 'event-venue-manager'),
+              'newOn'   => __('%s の新規イベント', 'event-venue-manager'),
+              'edit'    => __('イベントを編集', 'event-venue-manager'),
+              'noVenue' => __('(会場なし)', 'event-venue-manager'),
+              'saving'  => __('保存中...', 'event-venue-manager'),
             ],
             'holidayLabel' => 'both', // 'en' | 'ruby' | 'both'
             'venues' => $venue_items,
             'tz'     => wp_timezone_string(),
         ]);
-        wp_enqueue_script('evm-admin-calendar');
+  wp_enqueue_script('evm-admin-venue');
     }
 
     public static function render_page(): void {
-        echo '<div class="wrap"><h1>' . esc_html__('Event Calendar (Admin)', 'event-venue-manager') . '</h1>';
+  echo '<div class="wrap"><h1>' . esc_html__('イベントカレンダー', 'event-venue-manager') . '</h1>';
         echo '<div id="evm-admin-calendar"></div>';
         echo '</div>';
     }

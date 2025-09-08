@@ -12,9 +12,11 @@
     holidays: {}
   };
 
-  function fmtDate(y, m, d) { return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}` }
+  const EVMU = (window.EVM_UTILS || {});
+  const fmtDate = EVMU.fmtDate || ((y, m, d) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
 
   // 月のメタ情報を取得
+  // if EVM_UTILS.monthMeta is present it will be used by callers; fallback handled elsewhere
   function monthMeta(y, m) {
     const first = new Date(y, m - 1, 1);
     const days = new Date(y, m, 0).getDate();
@@ -56,28 +58,32 @@
   function renderHolidayPill(dateStr, td) {
     const h = state.holidays[dateStr];
     if (!h) return;
+    const mode = (EVM_ADMIN.holidayLabel || 'en');
+    const html = (window.EVM_UTILS && window.EVM_UTILS.renderHolidayHtml) ? window.EVM_UTILS.renderHolidayHtml(h, mode) : (function(){
+      if (typeof h === 'string') return `<div class="evm-holiday">${escapeHtml(h)}</div>`;
+      const ja = escapeHtml(h.ja || ''); const en = escapeHtml(h.en || ''); const ruby = h.ruby ? `<ruby>${ja}<rt>${escapeHtml(h.ruby)}</rt></ruby>` : ja;
+      if (mode === 'ruby') return `<div class="evm-holiday">${ruby}</div>`;
+      if (mode === 'both') return `<div class="evm-holiday">${ruby}${en ? ` <span class="en">(${en})</span>` : ''}</div>`;
+      return `<div class="evm-holiday">${ja}${en ? ` <span class="en">(${en})</span>` : ''}</div>`;
+    })();
+    td.insertAdjacentHTML('beforeend', html);
+  }
 
-    const hol = C('div', 'evm-holiday');
-    const mode = (EVM_ADMIN.holidayLabel || 'en'); // 'en'|'ruby'|'both'
-    if (typeof h === 'string') {
-      hol.textContent = h;
-    } else {
-      const ja = escapeHtml(h.ja || '');
-      const en = escapeHtml(h.en || '');
-      const ruby = h.ruby ? `<ruby>${ja}<rt>${escapeHtml(h.ruby)}</rt></ruby>` : ja;
-      let html;
-      if (mode === 'ruby') html = ruby;
-      else if (mode === 'both') html = `${ruby}${en ? ' <span class="en">(' + en + ')</span>' : ''}`;
-      else /* en */ html = `${ja}${en ? ' <span class="en">(' + en + ')</span>' : ''}`;
-      hol.innerHTML = html;
+  // state.events を日付キーでまとめたマップを返す
+  function eventsByDate() {
+    const map = {};
+    for (const e of state.events || []) {
+      const d = e.date || '';
+      if (!map[d]) map[d] = [];
+      map[d].push(e);
     }
-    td.append(hol);
+    return map;
   }
 
 
   function render() {
     const root = S('#evm-admin-calendar'); root.innerHTML = '';
-    const head = C('div', 'evm-admin-head');
+  const head = C('div', 'evm-admin-head');
     const prev = C('button'); prev.textContent = '‹';
     const next = C('button'); next.textContent = '›';
     const title = C('div'); title.style.minWidth = '160px'; title.style.textAlign = 'center';
@@ -91,6 +97,10 @@
       state.y = dt.getFullYear(); state.m = dt.getMonth() + 1; init();
     };
     head.append(prev, title, next); root.append(head);
+    // build a container that holds both month grid and list view (auto-switch by width)
+    const views = C('div', 'evm-cal-views');
+    const monthView = C('div', 'month-view');
+    const listView = C('div', 'list-view');
 
     const tbl = C('table', 'evm-admin-cal');
     const thead = C('thead'); const trh = C('tr');
@@ -98,8 +108,8 @@
     thead.append(trh); tbl.append(thead);
 
     const tbody = C('tbody');
-    const { days, startW, prevDays, lead, tail } = state.meta;
-    const byDate = eventsByDate();
+  const { days, startW, prevDays, lead, tail } = state.meta;
+  const byDate = (window.EVM_UTILS && window.EVM_UTILS.eventsByDate) ? window.EVM_UTILS.eventsByDate(state.events) : (function(){ const map = {}; for(const e of state.events || []){ const d = e.date || ''; if(!map[d]) map[d]=[]; map[d].push(e);} return map; })();
 
     let cell = 0, day = 1; let tr = C('tr');
 
@@ -166,9 +176,60 @@
     if (cell % 7 !== 0) { while (cell % 7 !== 0) { tr.append(C('td', 'evm-empty')); cell++; } }
     tbody.append(tr);
     tbl.append(tbody);
-    root.append(tbl);
+    monthView.append(tbl);
+
+    // LIST VIEW: show every day in the current month (admin needs to be able to add events to any date)
+    const listContainer = C('div', 'evm-list');
+    for (let d = 1; d <= state.meta.days; d++) {
+      const dateStr = fmtDate(state.y, state.m, d);
+      const items = byDate[dateStr] || [];
+      const row = C('div', 'evm-list-row');
+      const left = C('div', 'evm-list-date'); left.textContent = dateStr;
+      // weekday class for weekend coloring (0=Sun,6=Sat)
+      try {
+        const [yy, mm, dd] = String(dateStr).split('-').map(s => parseInt(s, 10));
+        const dow = new Date(yy, (mm || 1) - 1, dd || 1).getDay();
+        if (dow === 0) row.classList.add('is-sun');
+        if (dow === 6) row.classList.add('is-sat');
+      } catch (e) {}
+      const right = C('div', 'evm-list-info');
+      const count = C('span', 'evm-list-count'); count.textContent = String(items.length) + '件';
+  const titleEl = C('div', 'evm-list-title'); titleEl.textContent = items[0]?.title || '';
+      right.append(count, titleEl);
+      row.append(left, right);
+      // click to expand details or open modal to add
+      row.addEventListener('click', function (e) {
+        // If there are no items, open new-event modal for that date
+        if ((items || []).length === 0) { openModal({ mode: 'new', date: dateStr }); return; }
+        if (row.classList.contains('open')) { row.classList.remove('open'); row.querySelector('.evm-list-details')?.remove(); return; }
+        row.classList.add('open');
+        const details = C('div', 'evm-list-details');
+        for (const ev of items) {
+          const r2 = C('div', 'evm-list-item');
+          r2.textContent = (ev.time ? ev.time + ' ' : '') + ev.title + (ev.venue?.name ? ' @ ' + ev.venue.name : '');
+          // clicking an item opens edit modal
+          r2.addEventListener('click', function (evclick) { evclick.stopPropagation(); openModal({ mode: 'edit', date: dateStr, event: ev }); });
+          details.append(r2);
+        }
+        row.append(details);
+      });
+      listContainer.append(row);
+    }
+    listView.append(listContainer);
+
+    views.append(monthView, listView);
+    root.append(views);
 
     ensureModal(root);
+
+    // Auto-switch view based on viewport width (no manual toggle)
+    const mql = (window.matchMedia) ? window.matchMedia('(max-width:640px)') : null;
+    function applyModeByMedia() {
+      if (mql && mql.matches) { monthView.style.display = 'none'; listView.style.display = 'block'; }
+      else { monthView.style.display = 'block'; listView.style.display = 'none'; }
+    }
+    applyModeByMedia();
+    try { if (mql && mql.addEventListener) mql.addEventListener('change', applyModeByMedia); else if (mql && mql.addListener) mql.addListener(applyModeByMedia); } catch (e) {}
   }
 
 
@@ -299,7 +360,7 @@
   function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
   async function init() {
-    state.meta = monthMeta(state.y, state.m);
+    state.meta = (EVMU.monthMeta || monthMeta)(state.y, state.m);
     await fetchEvents({ from: state.meta.gridStartStr + ' 00:00', to: state.meta.gridEndStr + ' 23:59' });
     render();
   }

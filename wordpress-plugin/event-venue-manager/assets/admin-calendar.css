@@ -239,3 +239,18 @@ body.evm-modal-open {
   justify-content: flex-end;
   border-top: 1px solid #eee;
 }
+
+/* 管理カレンダー：モダンなリスト表示 */
+.evm-list { display:flex; flex-direction:column; gap:10px; padding:8px; }
+.evm-list-empty { color: var(--muted); padding:18px; text-align:center; background:var(--out-bg); border-radius:10px; }
+.evm-list-row { display:flex; align-items:center; gap:12px; padding:10px; border-radius:10px; background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); transition: all 160ms ease; cursor:pointer; box-shadow: 0 6px 18px rgba(2,6,23,0.04); }
+.evm-list-row:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(2,6,23,0.08); }
+.evm-list-date { min-width:120px; font-weight:700; color:var(--text); }
+.evm-list-row.is-sun .evm-list-date { color: var(--sun); }
+.evm-list-row.is-sat .evm-list-date { color: var(--sat); }
+.evm-list-info { flex:1; display:flex; flex-direction:column; gap:6px; }
+.evm-list-count { color:var(--muted); font-size:13px; }
+.evm-list-title { font-weight:700; color:var(--text); }
+.evm-list-details { margin-top:8px; padding-top:8px; border-top:1px dashed rgba(0,0,0,0.04); display:flex; flex-direction:column; gap:6px; }
+.evm-list-item { padding:6px 8px; background:var(--card); border-radius:8px; font-size:14px; }
+.evm-list-row.open { background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02)); }
