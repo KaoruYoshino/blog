@@ -4,8 +4,11 @@ __pycache__/
 *.sqlite3
 *.db
 *.log
+*.pem
 venv/
 node_modules/
 static/uploads/
 password.txt
 document/
+.github/
+plugin-deploy-lightsail.md
