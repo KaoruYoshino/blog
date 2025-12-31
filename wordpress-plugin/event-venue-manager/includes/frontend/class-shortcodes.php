@@ -70,8 +70,7 @@ class Shortcodes {
             $rows = $wpdb->get_results("
                 SELECT e.date AS event_date,
                        e.name AS event_name,
-                       v.name AS venue_name,
-                       e.url  AS event_url
+                       v.name AS venue_name
                   FROM {$table_events} e
                   JOIN {$table_venues} v ON e.venue_id = v.id
                  ORDER BY e.date ASC, e.id ASC
@@ -83,7 +82,6 @@ class Shortcodes {
                     'date'  => isset($r['event_date']) ? (string)$r['event_date'] : '',
                     'name'  => isset($r['event_name']) ? (string)$r['event_name'] : '',
                     'venue' => isset($r['venue_name']) ? (string)$r['venue_name'] : '',
-                    'url'   => ! empty($r['event_url']) ? (string)$r['event_url'] : '',
                 ];
             }
             return $events;

@@ -7,7 +7,14 @@
  */
 
 add_action('acf/init', function () {
+  $key = '';
   if (defined('GOOGLE_MAPS_API_KEY')) {
-    acf_update_setting('google_api_key', GOOGLE_MAPS_API_KEY);
+    $key = trim((string) GOOGLE_MAPS_API_KEY);
+  }
+  if ($key === '') {
+    $key = trim((string) get_option('evm_google_maps_key', ''));
+  }
+  if ($key !== '') {
+    acf_update_setting('google_api_key', $key);
   }
 });

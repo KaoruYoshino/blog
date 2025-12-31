@@ -44,6 +44,11 @@ class Plugin {
     \Event_Venue_Manager\CPT_Event::register();
     \Event_Venue_Manager\CPT_Venue::register();
 
+    // 必要な場合のみテーブルを作成（デフォルトは無効）
+    if (apply_filters('evm_auto_create_tables', false)) {
+      self::create_database_tables();
+    }
+
     flush_rewrite_rules();
   }
 
@@ -63,6 +68,9 @@ class Plugin {
     wp_register_script('evm-map-modal', EVM_URL . 'assets/js/map-modal.js', [], EVM_VER, true);
     // If plugin has stored API key in option 'evm_google_maps_key', inject it before the script runs.
     $key = get_option('evm_google_maps_key', '');
+    if ($key === '' && defined('GOOGLE_MAPS_API_KEY')) {
+      $key = trim((string) GOOGLE_MAPS_API_KEY);
+    }
     if ($key) {
       wp_add_inline_script('evm-map-modal', 'window.GOOGLE_MAPS_API_KEY = ' . wp_json_encode($key) . ';', 'before');
     }

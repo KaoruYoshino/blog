@@ -30,6 +30,9 @@
 .evm-cal-table thead th:last-child { color: var(--sat); }
 
 .evm-cal-date { font-weight: 700; margin-bottom: 4px; color: var(--text); }
+.evm-cal-title { font-weight: 700; }
+.evm-cal-day { position: relative; overflow: visible; }
+.evm-cal-day.is-today { outline: 2px solid #4caf50; }
 
 .evm-cal-day .evm-cal-date { font-weight: 700; }
 
@@ -37,7 +40,7 @@
 .evm-cal-table tbody tr>td:first-child:not(.evm-cal-empty) .evm-cal-date { color: var(--sun); }
 .evm-cal-table tbody tr>td:last-child:not(.evm-cal-empty) .evm-cal-date { color: var(--sat); }
 
-.evm-cal-event { font-size: 12.5px; margin: 3px 0; padding: 4px 6px; background: var(--brand-soft); border-left: 3px solid var(--brand); border-radius: 6px; line-height: 1.35; }
+.evm-cal-event { font-size: 12.5px; margin: 3px 0; padding: 4px 6px; background: var(--brand-soft); border-left: 3px solid var(--brand); border-radius: 6px; line-height: 1.35; position: relative; word-wrap: break-word; }
 .evm-cal-event.is-out { background: #eef2ff; border-left-color: #94a3ff; color: #334155; }
 
 .evm-holiday { font-size: 12.5px; margin: 3px 0; padding: 4px 6px; background: var(--holiday-soft); border-left: 3px solid var(--holiday); border-radius: 6px; font-weight: 600; color: #b91c1c; line-height: 1.3; }
@@ -54,6 +57,17 @@
 /* tooltip */
 .evm-cal-event[data-venue]:hover::after { content: attr(data-venue); position: absolute; left: 0; top: 100%; margin-top: 4px; background: #333; color: #fff; padding: 4px 6px; border-radius: 4px; font-size: .8em; white-space: nowrap; z-index: 3; pointer-events: none; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
 .evm-cal-event[data-venue]:hover::before { content: ""; position: absolute; left: 10px; top: calc(100% - 2px); border: 6px solid transparent; border-bottom-color: #333; z-index: 3; }
+.evm-cal-event.js-open-map { cursor: pointer; }
+.evm-cal-event .evm-venue-link {
+	background: none;
+	border: none;
+	padding: 0;
+	margin-left: 6px;
+	color: inherit;
+	font-weight: 600;
+	cursor: pointer;
+}
+.evm-cal-event.js-open-map a { color: inherit; text-decoration: underline; }
 
 /* Responsive: prevent excessive vertical growth on narrow screens */
 @media (max-width: 640px) {

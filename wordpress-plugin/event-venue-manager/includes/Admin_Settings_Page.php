@@ -42,7 +42,7 @@ final class Admin_Settings_Page {
     // セキュリティのため画面表示ではマスク（type=password）しておく。必要なら「表示」チェックで中身を確認可能。
     printf('<input id="evm_google_maps_key" type="password" name="evm_google_maps_key" value="%s" class="regular-text" />', esc_attr($val));
     echo ' <label style="margin-left:.5em; font-weight:normal;"><input id="evm_google_maps_key_toggle" type="checkbox" /> ' . esc_html__('Show','event-venue-manager') . '</label>';
-    echo '<p class="description">' . esc_html__('Enter your Google Maps JavaScript API key. Restrict by HTTP referrer in Google Cloud Console.', 'event-venue-manager') . '</p>';
+    echo '<p class="description">' . esc_html__('Enter your Google Maps JavaScript API key (leave blank to use GOOGLE_MAPS_API_KEY). Restrict by HTTP referrer in Google Cloud Console.', 'event-venue-manager') . '</p>';
     // 簡易トグルスクリプト（管理画面だけで動くのでインラインで良い）
     echo '<script>document.addEventListener("DOMContentLoaded", function(){const i=document.getElementById("evm_google_maps_key"),t=document.getElementById("evm_google_maps_key_toggle"); if(!i||!t) return; t.addEventListener("change", function(){ i.type = this.checked ? "text" : "password"; });});</script>';
     }
